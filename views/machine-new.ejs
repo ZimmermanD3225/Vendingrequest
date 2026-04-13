@@ -1,0 +1,30 @@
+<%- include('_header') %>
+
+<div class="card narrow">
+  <h1>Add a machine</h1>
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+  <form action="/machines" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>
+      Machine name
+      <input type="text" name="name" required maxlength="80"
+             value="<%= form.name || '' %>" autofocus
+             placeholder="Lobby Vending">
+    </label>
+
+    <label>
+      Location <span class="hint">(optional)</span>
+      <input type="text" name="location" maxlength="160"
+             value="<%= form.location || '' %>"
+             placeholder="Building A, 1st floor break room">
+    </label>
+
+    <button type="submit" class="btn btn-primary btn-lg btn-block">Create machine</button>
+  </form>
+  <p class="muted"><a href="/dashboard">← Back to dashboard</a></p>
+</div>
+
+<%- include('_footer') %>

@@ -1,0 +1,34 @@
+<%- include('_header') %>
+
+<div class="page-header">
+  <div>
+    <h1>Your machines</h1>
+    <p class="muted">Logged in as <strong><%= username %></strong></p>
+  </div>
+  <a class="btn btn-primary" href="/machines/new">+ New machine</a>
+</div>
+
+<% if (machines.length === 0) { %>
+  <div class="card empty">
+    <h2>No machines yet</h2>
+    <p>Add your first machine to get a QR code you can stick on it.</p>
+    <a class="btn btn-primary" href="/machines/new">Add a machine</a>
+  </div>
+<% } else { %>
+  <div class="machine-grid">
+    <% machines.forEach((m) => { %>
+      <a class="machine-card" href="/machines/<%= m.id %>">
+        <h3><%= m.name %></h3>
+        <% if (m.location) { %><p class="muted"><%= m.location %></p><% } %>
+        <div class="badges">
+          <% if (m.new_count > 0) { %>
+            <span class="badge badge-new"><%= m.new_count %> new</span>
+          <% } %>
+          <span class="badge"><%= m.total_count %> total</span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('_footer') %>

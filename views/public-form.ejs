@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request — <%= machine.name %></title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body class="public-body">
+  <main class="container narrow">
+    <h1>Request a product</h1>
+    <p class="muted"><strong><%= machine.name %></strong><% if (machine.location) { %> · <%= machine.location %><% } %></p>
+
+    <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <form action="/r/<%= machine.public_token %>" method="post" class="card">
+      <label>
+        What product do you want?
+        <input type="text" name="product_name" required maxlength="80" autofocus
+               value="<%= form.product_name || '' %>"
+               placeholder="e.g. Flamin' Hot Cheetos">
+      </label>
+
+      <label>
+        Category
+        <select name="category">
+          <option value="">— choose —</option>
+          <option value="snack" <%= form.category === 'snack' ? 'selected' : '' %>>Snack</option>
+          <option value="beverage" <%= form.category === 'beverage' ? 'selected' : '' %>>Beverage</option>
+          <option value="other" <%= form.category === 'other' ? 'selected' : '' %>>Other</option>
+        </select>
+      </label>
+
+      <label>
+        Anything else? <span class="hint">(optional)</span>
+        <textarea name="notes" rows="3" maxlength="500"
+                  placeholder="Size, flavor, how often you'd buy it..."><%= form.notes || '' %></textarea>
+      </label>
+
+      <label>
+        Your email or phone <span class="hint">(optional, only if you want a reply)</span>
+        <input type="text" name="contact" maxlength="120"
+               value="<%= form.contact || '' %>">
+      </label>
+
+      <!-- honeypot: real users leave this blank; bots fill it -->
+      <div class="hp" aria-hidden="true">
+        <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block">Submit request</button>
+    </form>
+
+    <p class="muted small">No account required. The operator of this machine will see your request.</p>
+  </main>
+</body>
+</html>

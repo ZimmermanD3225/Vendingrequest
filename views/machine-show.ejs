@@ -1,0 +1,91 @@
+<%- include('_header') %>
+
+<div class="page-header">
+  <div>
+    <h1><%= machine.name %></h1>
+    <% if (machine.location) { %>
+      <p class="muted"><%= machine.location %></p>
+    <% } %>
+  </div>
+  <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+</div>
+
+<div class="two-col">
+  <section class="card">
+    <h2>Customer QR code</h2>
+    <img class="qr" src="/machines/<%= machine.id %>/qr.png" alt="QR code for <%= machine.name %>">
+    <p class="muted small">Customers scan this to submit requests.</p>
+    <p class="public-url">
+      <span class="muted small">Public URL:</span><br>
+      <code><%= publicUrl %></code>
+    </p>
+    <div class="row-actions">
+      <a class="btn btn-primary" href="/machines/<%= machine.id %>/qr/print" target="_blank">Print poster</a>
+      <a class="btn btn-ghost" href="/machines/<%= machine.id %>/qr.png" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Requests</h2>
+    <nav class="tabs">
+      <a class="<%= status === 'new' ? 'active' : '' %>" href="?status=new">New</a>
+      <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
+      <a class="<%= status === 'dismissed' ? 'active' : '' %>" href="?status=dismissed">Dismissed</a>
+    </nav>
+
+    <% if (requests.length === 0) { %>
+      <p class="muted">No <%= status %> requests.</p>
+    <% } else { %>
+      <ul class="request-list">
+        <% requests.forEach((r) => { %>
+          <li class="request">
+            <div class="request-main">
+              <h3><%= r.product_name %></h3>
+              <p class="meta">
+                <% if (r.category) { %><span class="tag"><%= r.category %></span><% } %>
+                <span class="muted small"><%= r.created_at %> UTC</span>
+              </p>
+              <% if (r.notes) { %><p class="notes"><%= r.notes %></p><% } %>
+              <% if (r.contact) { %><p class="muted small">Contact: <%= r.contact %></p><% } %>
+            </div>
+            <div class="request-actions">
+              <% if (status !== 'addressed') { %>
+                <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="addressed">
+                  <button class="btn btn-sm btn-primary" type="submit">Mark addressed</button>
+                </form>
+              <% } %>
+              <% if (status !== 'dismissed') { %>
+                <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="dismissed">
+                  <button class="btn btn-sm btn-ghost" type="submit">Dismiss</button>
+                </form>
+              <% } %>
+              <% if (status !== 'new') { %>
+                <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="new">
+                  <button class="btn btn-sm btn-ghost" type="submit">Reopen</button>
+                </form>
+              <% } %>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </section>
+</div>
+
+<section class="card danger-zone">
+  <h2>Danger zone</h2>
+  <p class="muted small">Deleting this machine removes its QR code link and all its requests. This cannot be undone.</p>
+  <form action="/machines/<%= machine.id %>/delete" method="post"
+        onsubmit="return confirm('Delete this machine and all its requests? This cannot be undone.');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-danger btn-sm">Delete machine</button>
+  </form>
+</section>
+
+<%- include('_footer') %>

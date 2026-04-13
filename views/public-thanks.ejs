@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thanks!</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body class="public-body">
+  <main class="container narrow">
+    <div class="card success">
+      <h1>Thanks!</h1>
+      <p>Your request has been sent to the operator of <strong><%= machine.name %></strong>.</p>
+      <p class="muted">No guarantees — but every request helps them figure out what to stock.</p>
+      <a class="btn btn-primary" href="/r/<%= machine.public_token %>">Submit another request</a>
+    </div>
+  </main>
+</body>
+</html>

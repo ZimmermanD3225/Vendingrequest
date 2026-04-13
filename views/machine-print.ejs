@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Print — <%= machine.name %></title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="print-body">
+  <div class="poster">
+    <p class="poster-top">Help us stock what you want!</p>
+    <h1 class="poster-title">Scan to request a snack or drink</h1>
+    <img class="poster-qr" src="/machines/<%= machine.id %>/qr.png" alt="Request QR code">
+    <p class="poster-machine"><%= machine.name %></p>
+    <% if (machine.location) { %>
+      <p class="poster-location"><%= machine.location %></p>
+    <% } %>
+    <p class="poster-url">or visit: <strong><%= publicUrl %></strong></p>
+  </div>
+  <div class="print-controls">
+    <button id="print-btn" class="btn btn-primary btn-lg">Print this page</button>
+    <a href="/machines/<%= machine.id %>" class="btn btn-ghost">← Back to machine</a>
+  </div>
+  <script src="/print.js"></script>
+</body>
+</html>
