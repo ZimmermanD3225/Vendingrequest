@@ -7,7 +7,7 @@ const { qrPngBuffer } = require('../lib/qr');
 const router = express.Router();
 
 function publicUrlFor(token) {
-  const base = process.env.BASE_URL || 'http://localhost:3000';
+  const base = process.env.BASE_URL || 'http://localhost:4000';
   return `${base.replace(/\/$/, '')}/r/${token}`;
 }
 

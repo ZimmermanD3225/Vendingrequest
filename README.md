@@ -55,15 +55,15 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000 → sign up → create a machine → open the public URL in another browser window and submit a test request → watch it appear on your dashboard.
+Open http://localhost:4000 → sign up → create a machine → open the public URL in another browser window and submit a test request → watch it appear on your dashboard.
 
 ### Environment variables
 
 | Variable         | Purpose                                                         | Default                  |
 |------------------|-----------------------------------------------------------------|--------------------------|
-| `PORT`           | HTTP listen port                                                | `3000`                   |
+| `PORT`           | HTTP listen port                                                | `4000`                   |
 | `SESSION_SECRET` | 32+ random chars used to sign session cookies                   | dev fallback (insecure)  |
-| `BASE_URL`       | Public URL of the app — this is what QR codes encode            | `http://localhost:3000`  |
+| `BASE_URL`       | Public URL of the app — this is what QR codes encode            | `http://localhost:4000`  |
 | `NODE_ENV`       | `production` enables secure cookies + hides stack traces        | `development`            |
 
 Generate a session secret:
