@@ -15,7 +15,7 @@ async function main() {
   }
   const op = rows[0];
   console.log(`Seeding demo machines for "${op.username}" (id=${op.id})...`);
-  await seedDemoMachines(op.id);
+  await seedDemoMachines(op.id, { replace: true });
   console.log('Done! Refresh your dashboard.');
   await pool.end();
 }
