@@ -33,6 +33,8 @@ app.use(
         'script-src': ["'self'"],
         'form-action': ["'self'"],
         'frame-ancestors': ["'none'"],
+        // In dev we serve over plain http://localhost; don't force https upgrades.
+        'upgrade-insecure-requests': IS_PROD ? [] : null,
       },
     },
   })
