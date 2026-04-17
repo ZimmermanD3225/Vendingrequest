@@ -72,29 +72,21 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-    const token = generateVerificationToken();
-    const expires = new Date(Date.now() + VERIFICATION_TTL_MS);
 
     const op = await q.insertOperator({
       username: form.username,
       password_hash,
       business_name: form.business_name || null,
       email: form.email,
-      email_verified: false,
-      verification_token: token,
-      verification_expires_at: expires,
+      email_verified: true,
+      verification_token: null,
+      verification_expires_at: null,
     });
 
-    await sendVerificationEmail({
-      to: op.email,
-      verifyUrl: `${baseUrl()}/verify/${token}`,
-      businessName: form.business_name || op.username,
-    });
-
-    // Mark session as "awaiting verification" — enough to identify the user
-    // for the resend page, but NOT logged-in access.
-    req.session.pendingVerifyOperatorId = op.id;
-    res.redirect('/verify/pending');
+    req.session.operatorId = op.id;
+    req.session.username = op.username;
+    req.session.businessName = op.business_name || op.username;
+    res.redirect('/dashboard');
   } catch (err) {
     next(err);
   }
@@ -120,12 +112,6 @@ router.post('/login', async (req, res, next) => {
         error: 'Invalid username or password.',
         form,
       });
-    }
-
-    if (!op.email_verified) {
-      req.session.pendingVerifyOperatorId = op.id;
-      setFlash(req, 'error', 'Please verify your email before logging in.');
-      return res.redirect('/verify/pending');
     }
 
     req.session.operatorId = op.id;

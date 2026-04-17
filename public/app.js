@@ -7,6 +7,7 @@
     initSubmitLoadingState();
     initToast();
     initScrollReveal();
+    initThemeToggle();
   });
 
   function initPrintButton() {
@@ -54,6 +55,18 @@
       toast.classList.add('hide');
       setTimeout(function () { toast.remove(); }, 300);
     }
+  }
+
+  // Flip between light and dark themes; persist the choice in localStorage.
+  function initThemeToggle() {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (_) { /* private-mode etc. */ }
+    });
   }
 
   // Fade the landing-page step cards in as they scroll into view.
