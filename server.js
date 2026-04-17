@@ -8,6 +8,7 @@ const PgSession = require('connect-pg-simple')(session);
 
 const { pool, initSchema } = require('./db');
 const { csrfIssue, csrfVerify } = require('./middleware/csrf');
+const { flashMiddleware } = require('./middleware/flash');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -61,6 +62,7 @@ app.use(
 
 app.use(csrfIssue);
 app.use(csrfVerify(['/r/']));
+app.use(flashMiddleware);
 
 app.use((req, res, next) => {
   res.locals.currentUser = req.session && req.session.username

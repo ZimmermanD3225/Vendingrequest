@@ -1,6 +1,7 @@
 const express = require('express');
 const { q } = require('../db');
 const requireAuth = require('../middleware/requireAuth');
+const { setFlash } = require('../middleware/flash');
 const { generatePublicToken } = require('../lib/tokens');
 const { qrPngBuffer } = require('../lib/qr');
 
@@ -63,6 +64,7 @@ router.post('/machines', requireAuth, async (req, res, next) => {
       }
     }
     if (!created) throw new Error('Could not generate a unique machine token.');
+    setFlash(req, 'success', `"${name}" is ready. Print the poster and stick it on the machine.`);
     res.redirect(`/machines/${created.id}`);
   } catch (err) {
     next(err);
@@ -133,6 +135,7 @@ router.get('/machines/:id/qr/print', requireAuth, async (req, res, next) => {
 router.post('/machines/:id/delete', requireAuth, async (req, res, next) => {
   try {
     await q.deleteMachineForOperator(req.params.id, req.session.operatorId);
+    setFlash(req, 'success', 'Machine deleted.');
     res.redirect('/dashboard');
   } catch (err) {
     next(err);
@@ -158,6 +161,12 @@ router.post('/requests/:id/status', requireAuth, async (req, res, next) => {
       });
     }
     await q.updateRequestStatus(nextStatus, request.id, req.session.operatorId);
+    const msg = {
+      addressed: 'Marked as addressed.',
+      dismissed: 'Request dismissed.',
+      new: 'Request reopened.',
+    }[nextStatus];
+    setFlash(req, 'success', msg);
     res.redirect(`/machines/${request.machine_id}?status=${nextStatus}`);
   } catch (err) {
     next(err);
