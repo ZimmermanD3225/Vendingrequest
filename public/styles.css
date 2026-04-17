@@ -199,10 +199,34 @@ small { font-size: 0.85em; }
   background: var(--brand-inner); border-radius: 2px;
 }
 .brand-text { letter-spacing: -0.01em; }
-.topnav { display: flex; align-items: center; gap: 18px; font-size: 0.9rem; }
-.topnav a { color: var(--text-2); }
-.topnav a:hover { color: var(--text); }
-.topnav .biz { font-size: 0.85rem; }
+.topnav { display: flex; align-items: center; gap: 16px; font-size: 0.9rem; }
+.topnav-link {
+  color: var(--text);
+  font-weight: 500;
+  padding: 6px 2px;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-left: 0; border-right: 0; border-top: 0;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.topnav-link:hover { color: var(--accent); border-bottom-color: currentColor; }
+/* Override the generic button color on .btn elements placed inside the topnav */
+.topnav .btn-dark { color: var(--accent-contrast); }
+.topnav .btn-dark:hover { color: var(--accent-contrast); }
+.topnav .inline-form { margin: 0; display: inline-flex; }
+
+/* Mobile topbar: shrink gaps and hide the brand text so actions breathe */
+@media (max-width: 560px) {
+  .topbar { padding: 12px 14px; }
+  .topnav { gap: 10px; font-size: 0.85rem; }
+  .topnav-link { padding: 6px 0; font-size: 0.85rem; }
+  .brand-text { display: none; }
+  .theme-toggle { width: 30px; height: 30px; }
+  .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+}
 
 /* =========================================================================
    Layout
@@ -836,3 +860,53 @@ form textarea { resize: vertical; }
   margin-top: 4px;
 }
 .page-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Address autocomplete dropdown */
+.address-field { position: relative; }
+.address-suggest {
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  z-index: 50;
+  margin: 6px 0 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  max-height: 260px;
+  overflow-y: auto;
+  animation: fadeIn .15s var(--ease-out) both;
+}
+.address-suggest-item {
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text-2);
+  line-height: 1.35;
+  transition: background .1s var(--ease), color .1s var(--ease);
+}
+.address-suggest-item:hover,
+.address-suggest-item.active {
+  background: var(--ghost-hover);
+  color: var(--text);
+}
+
+/* Leaflet popup on full map */
+.mpop { min-width: 180px; font-family: var(--font); }
+.mpop strong { font-size: 0.95rem; }
+.mpop-sub  { color: var(--muted); font-size: 0.85rem; }
+.mpop-addr { color: var(--faint); font-size: 0.78rem; }
+.mpop-foot { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mpop-foot a { font-size: 0.85rem; font-weight: 500; color: var(--accent); }
+.mpop-badge {
+  background: var(--accent); color: var(--accent-contrast);
+  padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+}
+.leaflet-popup-content-wrapper {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+}
+.leaflet-popup-tip { background: var(--surface); }

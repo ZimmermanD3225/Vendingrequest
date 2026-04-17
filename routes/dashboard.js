@@ -5,7 +5,7 @@ const requireAuth = require('../middleware/requireAuth');
 const { setFlash } = require('../middleware/flash');
 const { generatePublicToken } = require('../lib/tokens');
 const { qrPngBuffer } = require('../lib/qr');
-const { forwardGeocode, reverseGeocode } = require('../lib/geocode');
+const { forwardGeocode, reverseGeocode, searchSuggestions } = require('../lib/geocode');
 
 const router = express.Router();
 
@@ -65,6 +65,29 @@ router.get('/api/geocode-reverse', requireAuth, async (req, res) => {
   if (isNaN(lat) || isNaN(lng)) return res.json({ ok: false });
   const result = await reverseGeocode(lat, lng);
   res.json(result ? { ok: true, ...result } : { ok: false });
+});
+
+router.get('/api/geocode-suggest', requireAuth, async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (query.length < 3) return res.json({ ok: true, results: [] });
+  const results = await searchSuggestions(query, 5);
+  res.json({ ok: true, results });
+});
+
+router.post('/machines/:id/location', requireAuth, async (req, res, next) => {
+  try {
+    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(req.body.lng);
+    if (isNaN(lat) || isNaN(lng)) return res.status(400).json({ ok: false });
+    const machine = await q.getMachineForOperator(req.params.id, req.session.operatorId);
+    if (!machine) return res.status(404).json({ ok: false });
+    const rev = await reverseGeocode(lat, lng);
+    const address = rev ? rev.display : machine.address;
+    await q.updateMachineLocation(req.params.id, req.session.operatorId, { address, lat, lng });
+    res.json({ ok: true, address });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/machines/new', requireAuth, (req, res) => {

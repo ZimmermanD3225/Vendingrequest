@@ -18,15 +18,14 @@
     </a>
     <nav class="topnav">
       <% if (currentUser) { %>
-        <span class="biz muted"><%= currentUser.businessName || currentUser.username %></span>
-        <a href="/dashboard">Dashboard</a>
+        <a href="/dashboard" class="topnav-link">Dashboard</a>
         <form action="/logout" method="post" class="inline-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="link-button">Log out</button>
+          <button type="submit" class="topnav-link topnav-logout">Log out</button>
         </form>
       <% } else { %>
-        <a href="/login">Log in</a>
-        <a href="/signup" class="btn btn-dark btn-sm">Sign up</a>
+        <a href="/login" class="topnav-link">Log in</a>
+        <a href="/signup" class="btn btn-dark btn-sm topnav-cta">Sign up</a>
       <% } %>
       <button type="button" class="theme-toggle" id="theme-toggle"
               aria-label="Toggle color theme" title="Toggle theme">
