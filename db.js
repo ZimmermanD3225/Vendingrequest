@@ -7,10 +7,11 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl:
-    process.env.NODE_ENV === 'production' && !/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL)
-      ? { rejectUnauthorized: false }
-      : false,
+  // SSL is required by most managed Postgres providers (Render, Neon, Supabase).
+  // Only skip SSL for local Postgres (docker compose / localhost).
+  ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL)
+    ? false
+    : { rejectUnauthorized: false },
 });
 
 pool.on('error', (err) => {
