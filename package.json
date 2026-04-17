@@ -19,6 +19,7 @@
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
+    "leaflet": "^1.9.4",
     "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "resend": "^4.0.1"

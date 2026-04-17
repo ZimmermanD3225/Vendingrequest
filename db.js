@@ -48,6 +48,9 @@ async function initSchema() {
       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_machines_operator ON machines(operator_id);
+    ALTER TABLE machines ADD COLUMN IF NOT EXISTS address TEXT;
+    ALTER TABLE machines ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+    ALTER TABLE machines ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
 
     CREATE TABLE IF NOT EXISTS requests (
       id              SERIAL PRIMARY KEY,
@@ -120,13 +123,20 @@ const q = {
   },
 
   // --- machines ---
-  async insertMachine({ operator_id, name, location, public_token }) {
+  async insertMachine({ operator_id, name, location, public_token, address, lat, lng }) {
     const { rows } = await pool.query(
-      `INSERT INTO machines (operator_id, name, location, public_token)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [operator_id, name, location, public_token]
+      `INSERT INTO machines (operator_id, name, location, public_token, address, lat, lng)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [operator_id, name, location, public_token, address || null, lat || null, lng || null]
     );
     return rows[0];
+  },
+  async updateMachineLocation(id, operator_id, { address, lat, lng }) {
+    await pool.query(
+      `UPDATE machines SET address = $1, lat = $2, lng = $3
+       WHERE id = $4 AND operator_id = $5`,
+      [address || null, lat || null, lng || null, id, operator_id]
+    );
   },
   async listMachinesForOperator(operator_id) {
     const { rows } = await pool.query(

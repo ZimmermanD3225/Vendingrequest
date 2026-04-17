@@ -1,0 +1,17 @@
+<%- include('_header') %>
+
+<div class="page-head">
+  <div>
+    <h1>Machine map</h1>
+    <p class="muted">All your machines with an address.</p>
+  </div>
+  <a class="btn btn-ghost" href="/dashboard">← Dashboard</a>
+</div>
+
+<div id="full-map" class="full-map" data-pins='<%- pins %>'></div>
+
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script src="/vendor/leaflet/leaflet.js" defer></script>
+<script src="/map.js" defer></script>
+
+<%- include('_footer') %>

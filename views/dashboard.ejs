@@ -5,7 +5,13 @@
     <h1>Machines</h1>
     <p class="muted"><%= machines.length %> total</p>
   </div>
-  <a class="btn btn-dark" href="/machines/new">+ New machine</a>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/map">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 6l6-4 6 4 6-4v12l-6 4-6-4-6 4z"/><path d="M7 2v12M13 6v12"/></svg>
+      Map
+    </a>
+    <a class="btn btn-dark" href="/machines/new">+ New machine</a>
+  </div>
 </div>
 
 <% if (machines.length === 0) { %>

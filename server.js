@@ -28,7 +28,7 @@ app.use(
       useDefaults: true,
       directives: {
         'default-src': ["'self'"],
-        'img-src': ["'self'", 'data:'],
+        'img-src': ["'self'", 'data:', 'https://*.tile.openstreetmap.org'],
         'style-src': ["'self'"],
         'script-src': ["'self'"],
         'form-action': ["'self'"],
@@ -39,6 +39,7 @@ app.use(
   })
 );
 app.use(express.urlencoded({ extended: false, limit: '32kb' }));
+app.use('/vendor/leaflet', express.static(path.join(__dirname, 'node_modules/leaflet/dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(

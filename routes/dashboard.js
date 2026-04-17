@@ -5,6 +5,7 @@ const requireAuth = require('../middleware/requireAuth');
 const { setFlash } = require('../middleware/flash');
 const { generatePublicToken } = require('../lib/tokens');
 const { qrPngBuffer } = require('../lib/qr');
+const { forwardGeocode, reverseGeocode } = require('../lib/geocode');
 
 const router = express.Router();
 
@@ -39,6 +40,33 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
   }
 });
 
+router.get('/map', requireAuth, async (req, res, next) => {
+  try {
+    const machines = await q.listMachinesForOperator(req.session.operatorId);
+    const pins = machines
+      .filter((m) => m.lat && m.lng)
+      .map((m) => ({ id: m.id, name: m.name, location: m.location || '', address: m.address || '', lat: m.lat, lng: m.lng, new_count: m.new_count }));
+    res.render('map', { title: 'Map', pins: JSON.stringify(pins) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/api/geocode', requireAuth, async (req, res) => {
+  const address = String(req.query.q || '').trim();
+  if (!address) return res.json({ ok: false });
+  const result = await forwardGeocode(address);
+  res.json(result ? { ok: true, ...result } : { ok: false });
+});
+
+router.get('/api/geocode-reverse', requireAuth, async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (isNaN(lat) || isNaN(lng)) return res.json({ ok: false });
+  const result = await reverseGeocode(lat, lng);
+  res.json(result ? { ok: true, ...result } : { ok: false });
+});
+
 router.get('/machines/new', requireAuth, (req, res) => {
   res.render('machine-new', { title: 'New machine', error: null, form: {} });
 });
@@ -47,13 +75,21 @@ router.post('/machines', requireAuth, async (req, res, next) => {
   try {
     const name = String(req.body.name || '').trim().slice(0, 80);
     const location = String(req.body.location || '').trim().slice(0, 160);
+    const address = String(req.body.address || '').trim().slice(0, 300);
+    let lat = parseFloat(req.body.lat) || null;
+    let lng = parseFloat(req.body.lng) || null;
 
     if (!name) {
       return res.status(400).render('machine-new', {
         title: 'New machine',
         error: 'Machine name is required.',
-        form: { name, location },
+        form: { name, location, address },
       });
+    }
+
+    if (address && !lat) {
+      const geo = await forwardGeocode(address);
+      if (geo) { lat = geo.lat; lng = geo.lng; }
     }
 
     let created;
@@ -64,6 +100,9 @@ router.post('/machines', requireAuth, async (req, res, next) => {
           name,
           location: location || null,
           public_token: generatePublicToken(),
+          address,
+          lat,
+          lng,
         });
         break;
       } catch (err) {

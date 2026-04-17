@@ -8,6 +8,8 @@
 
   <form action="/machines" method="post" class="stack">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="lat" id="lat" value="<%= form.lat || '' %>">
+    <input type="hidden" name="lng" id="lng" value="<%= form.lng || '' %>">
 
     <label>Name
       <input type="text" name="name" required maxlength="80"
@@ -21,9 +23,26 @@
              placeholder="Building A, 1st floor break room">
     </label>
 
+    <label>Address <span class="muted">(for map)</span>
+      <input type="text" name="address" id="address-input" maxlength="300"
+             value="<%= form.address || '' %>"
+             placeholder="123 Main St, City, State"
+             autocomplete="street-address">
+    </label>
+    <button type="button" class="btn btn-ghost btn-sm" id="locate-btn">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3"/></svg>
+      Use my location
+    </button>
+
+    <div id="mini-map" class="mini-map" style="display:none;"></div>
+
     <button type="submit" class="btn btn-dark btn-lg btn-block">Create machine</button>
   </form>
   <p class="muted center"><a href="/dashboard">← Back to dashboard</a></p>
 </div>
+
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<script src="/vendor/leaflet/leaflet.js" defer></script>
+<script src="/map.js" defer></script>
 
 <%- include('_footer') %>
