@@ -12,7 +12,9 @@
 
 <div class="twocol">
   <aside class="qr-panel">
-    <img class="qr" src="/machines/<%= machine.id %>/qr.png" alt="QR code">
+    <div class="qr-frame">
+      <img class="qr" src="/machines/<%= machine.id %>/qr.png?v=<%= qrVersion %>" alt="QR code" width="512" height="512">
+    </div>
     <p class="muted small center">Customers scan this to submit requests.</p>
     <div class="url-block">
       <p class="muted tiny">PUBLIC URL</p>
@@ -20,7 +22,7 @@
     </div>
     <div class="actions">
       <a class="btn btn-dark btn-block" href="/machines/<%= machine.id %>/qr/print" target="_blank">Print poster</a>
-      <a class="btn btn-ghost btn-block" href="/machines/<%= machine.id %>/qr.png" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
+      <a class="btn btn-ghost btn-block" href="/machines/<%= machine.id %>/qr.png?v=<%= qrVersion %>" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
     </div>
 
     <details class="danger-zone">

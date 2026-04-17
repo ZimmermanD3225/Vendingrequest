@@ -11,7 +11,7 @@
   <div class="poster">
     <p class="poster-top">Request a snack or drink</p>
     <h1 class="poster-title">Scan to tell us what to stock</h1>
-    <img class="poster-qr" src="/machines/<%= machine.id %>/qr.png" alt="Request QR code">
+    <img class="poster-qr" src="/machines/<%= machine.id %>/qr.png?v=<%= qrVersion %>" alt="Request QR code">
     <p class="poster-machine"><%= machine.name %></p>
     <% if (machine.location) { %>
       <p class="poster-location"><%= machine.location %></p>

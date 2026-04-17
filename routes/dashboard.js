@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { q } = require('../db');
 const requireAuth = require('../middleware/requireAuth');
 const { setFlash } = require('../middleware/flash');
@@ -10,6 +11,12 @@ const router = express.Router();
 function publicUrlFor(token) {
   const base = process.env.BASE_URL || 'http://localhost:4000';
   return `${base.replace(/\/$/, '')}/r/${token}`;
+}
+
+// Short hash of the encoded URL — used as a ?v= cache buster on the <img>
+// so the browser refetches the QR whenever BASE_URL changes.
+function qrVersion(url) {
+  return crypto.createHash('sha1').update(url).digest('hex').slice(0, 10);
 }
 
 router.get('/dashboard', requireAuth, async (req, res, next) => {
@@ -87,12 +94,14 @@ router.get('/machines/:id', requireAuth, async (req, res, next) => {
       : 'new';
     const requests = await q.listRequestsForMachine(machine.id, status);
 
+    const publicUrl = publicUrlFor(machine.public_token);
     res.render('machine-show', {
       title: machine.name,
       machine,
       requests,
       status,
-      publicUrl: publicUrlFor(machine.public_token),
+      publicUrl,
+      qrVersion: qrVersion(publicUrl),
     });
   } catch (err) {
     next(err);
@@ -103,8 +112,10 @@ router.get('/machines/:id/qr.png', requireAuth, async (req, res, next) => {
   try {
     const machine = await q.getMachineForOperator(req.params.id, req.session.operatorId);
     if (!machine) return res.status(404).end();
-    const buf = await qrPngBuffer(publicUrlFor(machine.public_token), { size: 512 });
+    const buf = await qrPngBuffer(publicUrlFor(machine.public_token));
     res.set('Content-Type', 'image/png');
+    // Short cache — the version query param immutably identifies this render
+    // (different BASE_URL → different ?v= → different entry), so it's safe.
     res.set('Cache-Control', 'private, max-age=3600');
     res.send(buf);
   } catch (err) {
@@ -122,10 +133,12 @@ router.get('/machines/:id/qr/print', requireAuth, async (req, res, next) => {
         stack: null,
       });
     }
+    const publicUrl = publicUrlFor(machine.public_token);
     res.render('machine-print', {
       title: `Print — ${machine.name}`,
       machine,
-      publicUrl: publicUrlFor(machine.public_token),
+      publicUrl,
+      qrVersion: qrVersion(publicUrl),
     });
   } catch (err) {
     next(err);

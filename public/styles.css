@@ -459,12 +459,25 @@ form textarea { resize: vertical; }
   position: sticky; top: 80px;
   box-shadow: var(--shadow-sm);
 }
-.qr {
-  display: block; width: 100%; max-width: 280px; margin: 0 auto 16px;
-  background: #fff; padding: 8px;
+.qr-frame {
+  max-width: 280px;
+  margin: 0 auto 16px;
+  padding: 12px;
+  background: #fff;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   animation: fadeIn .5s var(--ease-out) both;
+}
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Keep QR pixels sharp — no browser smoothing/antialiasing on the modules. */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  /* Explicitly no border-radius, no transforms — anything that clips or blurs
+     the three corner finder patterns can make the code unscannable. */
 }
 .url-block {
   margin: 16px 0;
@@ -664,7 +677,12 @@ form textarea { resize: vertical; }
 }
 .poster-top { color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.78rem; margin-bottom: 6px; }
 .poster-title { font-size: 2rem; letter-spacing: -0.025em; margin-bottom: 28px; }
-.poster-qr { width: 100%; max-width: 360px; height: auto; }
+.poster-qr {
+  width: 100%; max-width: 360px; height: auto;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
 .poster-machine { font-size: 1.5rem; font-weight: 600; margin: 24px 0 4px; }
 .poster-location { color: var(--muted); margin-bottom: 20px; }
 .poster-url { font-size: 0.8rem; color: var(--faint); word-break: break-all; font-family: var(--mono); }
