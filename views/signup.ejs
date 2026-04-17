@@ -19,14 +19,15 @@
       <small>8+ characters.</small>
     </label>
 
+    <label>Email
+      <input type="email" name="email" required maxlength="160"
+             value="<%= form.email || '' %>" autocomplete="email">
+      <small>We'll send a verification link — your account isn't active until you click it.</small>
+    </label>
+
     <label>Business name <span class="muted">(optional)</span>
       <input type="text" name="business_name" maxlength="120"
              value="<%= form.business_name || '' %>">
-    </label>
-
-    <label>Email <span class="muted">(optional)</span>
-      <input type="email" name="email" maxlength="120"
-             value="<%= form.email || '' %>" autocomplete="email">
     </label>
 
     <button type="submit" class="btn btn-dark btn-lg btn-block">Create account</button>

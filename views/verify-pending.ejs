@@ -1,0 +1,36 @@
+<%- include('_header') %>
+
+<div class="auth center-content">
+  <div class="mail-icon" aria-hidden="true">
+    <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="8" y="16" width="48" height="32" rx="4"/>
+      <path d="M8 20 L32 38 L56 20"/>
+    </svg>
+  </div>
+
+  <h1>Check your email</h1>
+  <p class="muted">
+    We sent a verification link to <strong><%= email %></strong>.<br>
+    Click the link to activate your account.
+  </p>
+
+  <% if (!emailEnabled) { %>
+    <div class="dev-note">
+      <span class="tiny">DEV MODE</span>
+      <p>No email provider is configured (<code>RESEND_API_KEY</code> is not set).
+      The verification link was printed to your server terminal — copy and paste it into your browser.</p>
+    </div>
+  <% } %>
+
+  <form action="/verify/resend" method="post" class="resend-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <p class="muted small">Didn't get it? Check your spam folder, or resend.</p>
+    <button type="submit" class="btn btn-ghost btn-sm">Resend verification email</button>
+  </form>
+
+  <p class="muted small center">
+    <a href="/login">← Back to log in</a>
+  </p>
+</div>
+
+<%- include('_footer') %>

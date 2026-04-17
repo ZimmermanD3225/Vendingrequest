@@ -63,9 +63,23 @@ Open the machine page, scan the QR from your phone (same wifi).
 |------------------|------------------------------------------------------------------------|:--------:|
 | `DATABASE_URL`   | Postgres connection string                                             | ✅       |
 | `SESSION_SECRET` | 32+ random chars used to sign session cookies                          | ✅ (prod)|
-| `BASE_URL`       | Public URL of the app — what QR codes encode                           | ✅       |
+| `BASE_URL`       | Public URL of the app — what QR codes and verify emails link to        | ✅       |
 | `PORT`           | HTTP listen port                                                       | default 4000 |
 | `NODE_ENV`       | `production` enables secure cookies + TLS for pg + hides stack traces   | default development |
+| `RESEND_API_KEY` | [Resend](https://resend.com) API key for sending verification emails. **If blank, the app logs the verify link to the server console** — handy for local dev. | ❌ |
+| `EMAIL_FROM`     | `From` header on outbound mail. On the Resend free tier, keep the default (`Vending Request <onboarding@resend.dev>`) until you verify a domain. | default set |
+
+## Email verification
+
+New signups must click a link in a verification email before they can log
+in. In development, if `RESEND_API_KEY` is not set, the link is printed
+to the terminal where `npm start` is running — just copy/paste into a
+browser to verify.
+
+In production, set `RESEND_API_KEY`. On the free tier you can only send
+to the address your Resend account was registered with, which is fine
+for smoke tests. For real users, verify your sending domain in Resend
+(~10 min of DNS records) and update `EMAIL_FROM`.
 
 Generate a session secret:
 

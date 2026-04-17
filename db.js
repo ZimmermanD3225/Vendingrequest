@@ -20,13 +20,24 @@ pool.on('error', (err) => {
 async function initSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS operators (
-      id              SERIAL PRIMARY KEY,
-      username        TEXT UNIQUE NOT NULL,
-      password_hash   TEXT NOT NULL,
-      business_name   TEXT,
-      email           TEXT,
-      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      id                        SERIAL PRIMARY KEY,
+      username                  TEXT UNIQUE NOT NULL,
+      password_hash             TEXT NOT NULL,
+      business_name             TEXT,
+      email                     TEXT,
+      email_verified            BOOLEAN NOT NULL DEFAULT TRUE,
+      verification_token        TEXT,
+      verification_expires_at   TIMESTAMPTZ,
+      created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    -- Idempotent upgrades for existing deploys.
+    ALTER TABLE operators ADD COLUMN IF NOT EXISTS email_verified          BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE operators ADD COLUMN IF NOT EXISTS verification_token      TEXT;
+    ALTER TABLE operators ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operators_email_ci
+      ON operators (LOWER(email)) WHERE email IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_operators_verification_token
+      ON operators (verification_token) WHERE verification_token IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS machines (
       id              SERIAL PRIMARY KEY,
@@ -54,17 +65,58 @@ async function initSchema() {
 // Query helpers. All return the plain rows; callers handle missing rows themselves.
 const q = {
   // --- operators ---
-  async insertOperator({ username, password_hash, business_name, email }) {
+  async insertOperator({
+    username, password_hash, business_name, email,
+    email_verified = true, verification_token = null, verification_expires_at = null,
+  }) {
     const { rows } = await pool.query(
-      `INSERT INTO operators (username, password_hash, business_name, email)
-       VALUES ($1, $2, $3, $4) RETURNING id, username`,
-      [username, password_hash, business_name, email]
+      `INSERT INTO operators
+         (username, password_hash, business_name, email,
+          email_verified, verification_token, verification_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email`,
+      [username, password_hash, business_name, email,
+       email_verified, verification_token, verification_expires_at]
     );
+    return rows[0];
+  },
+  async getOperatorById(id) {
+    const { rows } = await pool.query(`SELECT * FROM operators WHERE id = $1`, [id]);
     return rows[0];
   },
   async getOperatorByUsername(username) {
     const { rows } = await pool.query(`SELECT * FROM operators WHERE username = $1`, [username]);
     return rows[0];
+  },
+  async getOperatorByEmail(email) {
+    const { rows } = await pool.query(
+      `SELECT * FROM operators WHERE LOWER(email) = LOWER($1)`, [email]
+    );
+    return rows[0];
+  },
+  async getOperatorByVerificationToken(token) {
+    const { rows } = await pool.query(
+      `SELECT * FROM operators WHERE verification_token = $1`, [token]
+    );
+    return rows[0];
+  },
+  async setVerificationToken(id, token, expiresAt) {
+    await pool.query(
+      `UPDATE operators
+         SET verification_token = $1,
+             verification_expires_at = $2
+       WHERE id = $3`,
+      [token, expiresAt, id]
+    );
+  },
+  async markEmailVerified(id) {
+    await pool.query(
+      `UPDATE operators
+         SET email_verified = TRUE,
+             verification_token = NULL,
+             verification_expires_at = NULL
+       WHERE id = $1`,
+      [id]
+    );
   },
 
   // --- machines ---
