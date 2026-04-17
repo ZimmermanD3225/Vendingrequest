@@ -5,6 +5,7 @@ const { q } = require('../db');
 const { generateVerificationToken } = require('../lib/tokens');
 const { sendVerificationEmail } = require('../lib/email');
 const { setFlash } = require('../middleware/flash');
+const { seedDemoMachines } = require('../lib/demo-seed');
 
 const router = express.Router();
 
@@ -82,6 +83,8 @@ router.post('/signup', async (req, res, next) => {
       verification_token: null,
       verification_expires_at: null,
     });
+
+    try { await seedDemoMachines(op.id); } catch (_) { /* non-fatal */ }
 
     req.session.operatorId = op.id;
     req.session.username = op.username;
