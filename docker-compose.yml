@@ -1,0 +1,22 @@
+# Local dev Postgres. After `docker compose up -d`, point DATABASE_URL in .env at:
+#   postgres://vending:vending@localhost:5432/vending
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vending
+      POSTGRES_PASSWORD: vending
+      POSTGRES_DB: vending
+    ports:
+      - "5432:5432"
+    volumes:
+      - vending_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vending -d vending"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  vending_pg_data:

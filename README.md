@@ -1,70 +1,71 @@
 # Vending Request
 
-A self-hosted web app for vending machine operators. Stick a **QR code** on each machine — customers scan it on their phone and submit a "please stock X" request. Operators log in to see every request tied to each machine, so they can react to actual demand instead of handwritten notes (or threats about Cheetos).
+A minimalist web app for vending machine operators. Each machine gets a **QR code sticker**. Customers scan, type the product they want + their phone number, hit submit. Operators see requests in a clean dashboard.
 
 ```
- ┌──────────────┐    scan     ┌───────────────┐   submit    ┌──────────────────┐
- │ QR on machine│ ──────────▶ │ Public request│ ──────────▶ │ Operator dashboard│
- │  (per-machine│             │ form (no auth)│             │ (username + pass) │
- │   unique URL)│             └───────────────┘             └──────────────────┘
- └──────────────┘
+  ┌─────────────┐   scan    ┌────────────────┐   submit    ┌─────────────────┐
+  │ QR on machine│ ────────▶ │ 2-field form   │ ──────────▶ │ Operator        │
+  │  (per machine│           │ product + phone│             │ dashboard       │
+  │   unique URL)│           └────────────────┘             │ (user + pass)   │
+  └─────────────┘                                           └─────────────────┘
 ```
 
-## What it does
+**Customer flow:** scan → type product → type phone → submit. Two fields, one tap.
 
-- **Operator accounts**: sign up with username + password (bcrypt, session cookies).
-- **Machines**: an operator can create multiple machines. Each one gets its own unguessable URL and a printable QR code poster.
-- **Public request form**: customers scan the QR, see a mobile-friendly form (product name, category, optional notes + contact), and submit. No login required.
-- **Dashboard**: operator sees new/addressed/dismissed requests per machine, with one-click status changes.
-- **Secure by default**: CSRF tokens on every POST, strict Content Security Policy, helmet headers, per-IP rate limit on submissions, honeypot field, operator-scoped queries (no IDOR).
+**Operator flow:** sign up → add machine → print QR poster → watch requests land on your dashboard with a clickable tel: link for every number.
 
-## Tech stack
+## Stack
 
-- Node.js 20 + Express 4
-- `better-sqlite3` (single-file database, no server)
-- EJS server-side templates, plain CSS (no build step)
-- `express-session` with SQLite-backed session store
+- Node 20 + Express
+- **Postgres** (managed, any provider — Render, Railway, Fly, Neon, Supabase)
+- EJS server-side templates, plain CSS, no build step
+- `express-session` with Postgres-backed session store (`connect-pg-simple`)
 - `qrcode` for server-side QR PNG generation
 - `helmet`, `express-rate-limit`, `bcryptjs`
 
-## Project layout
-
-```
-server.js                 # Express app wiring
-db.js                     # SQLite schema + prepared statements
-lib/tokens.js             # Random public + CSRF tokens
-lib/qr.js                 # QR PNG buffer (cached)
-middleware/requireAuth.js # Redirect unauth'd users to /login
-middleware/csrf.js        # Issue + verify CSRF tokens
-routes/auth.js            # /signup, /login, /logout
-routes/dashboard.js       # /dashboard, /machines/*, /requests/:id/status
-routes/public.js          # /r/:token (customer-facing form)
-views/                    # EJS templates
-public/                   # styles.css, favicon, print.js
-data/                     # SQLite files (gitignored, created at boot)
-```
-
 ## Run locally
 
+### Option A: with Docker (recommended)
+
 ```bash
-git clone <this-repo>
-cd Vendingrequest
+git clone https://github.com/zimmermand3225/vendingrequest.git
+cd vendingrequest
+git checkout claude/operator-request-form-qr-acT6x
 cp .env.example .env
-# edit .env if you want — defaults are fine for local dev
+docker compose up -d        # starts Postgres on :5432
 npm install
 npm start
 ```
 
-Open http://localhost:4000 → sign up → create a machine → open the public URL in another browser window and submit a test request → watch it appear on your dashboard.
+Open http://localhost:4000.
 
-### Environment variables
+### Option B: with a hosted Postgres (no Docker)
 
-| Variable         | Purpose                                                         | Default                  |
-|------------------|-----------------------------------------------------------------|--------------------------|
-| `PORT`           | HTTP listen port                                                | `4000`                   |
-| `SESSION_SECRET` | 32+ random chars used to sign session cookies                   | dev fallback (insecure)  |
-| `BASE_URL`       | Public URL of the app — this is what QR codes encode            | `http://localhost:4000`  |
-| `NODE_ENV`       | `production` enables secure cookies + hides stack traces        | `development`            |
+1. Create a free Postgres at [Neon](https://neon.tech) or [Supabase](https://supabase.com).
+2. Copy the connection string.
+3. `cp .env.example .env` and paste it into `DATABASE_URL`.
+4. `npm install && npm start`.
+
+### Test from your phone (LAN)
+
+Phones can't reach `localhost` — point `BASE_URL` at your Mac's LAN IP:
+
+```bash
+ipconfig getifaddr en0                     # e.g. 192.168.4.41
+PORT=4000 BASE_URL=http://192.168.4.41:4000 npm start
+```
+
+Open the machine page, scan the QR from your phone (same wifi).
+
+## Environment variables
+
+| Variable         | Purpose                                                                | Required |
+|------------------|------------------------------------------------------------------------|:--------:|
+| `DATABASE_URL`   | Postgres connection string                                             | ✅       |
+| `SESSION_SECRET` | 32+ random chars used to sign session cookies                          | ✅ (prod)|
+| `BASE_URL`       | Public URL of the app — what QR codes encode                           | ✅       |
+| `PORT`           | HTTP listen port                                                       | default 4000 |
+| `NODE_ENV`       | `production` enables secure cookies + TLS for pg + hides stack traces   | default development |
 
 Generate a session secret:
 
@@ -74,49 +75,45 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## Deploy
 
-This is a single Node process + a SQLite file. Any host that runs Node and gives you a persistent disk works. Below are the easiest options.
+### Render (one-click blueprint)
 
-### Render (free tier)
+A `render.yaml` lives in this repo, so you can deploy the app **and** a managed Postgres in one step.
 
-1. Push this repo to GitHub.
-2. New → **Web Service** → connect the repo.
-3. Runtime: **Node**.
-4. Build command: `npm install`
-5. Start command: `node server.js`
-6. Add a **Disk**: mount at `/opt/render/project/src/data`, 1 GB is plenty.
-7. Environment variables:
-   - `SESSION_SECRET` = (paste a random string)
-   - `BASE_URL` = `https://<your-service>.onrender.com`
-   - `NODE_ENV` = `production`
-8. Deploy. First load of a machine's QR page will encode the production URL.
+1. Push the repo to your GitHub.
+2. Go to **Render → New → Blueprint** and point it at the repo.
+3. Render creates two resources:
+   - `vending-request` web service (free plan)
+   - `vending-request-db` Postgres instance (free plan)
+4. After the first deploy, set the `BASE_URL` env var on the web service to your `https://<service>.onrender.com` URL and redeploy.
+5. Done — open the Render URL, sign up, create a machine.
 
 ### Railway
 
-1. New Project → Deploy from GitHub.
-2. Add a **Volume** mounted at `/app/data`.
-3. Set the same three env vars (`SESSION_SECRET`, `BASE_URL`, `NODE_ENV=production`).
-4. Railway runs `npm start` by default.
+1. **New Project → Deploy from GitHub** → select this repo.
+2. **Add Plugin → PostgreSQL**. Railway auto-injects `DATABASE_URL`.
+3. Set env vars on the web service: `SESSION_SECRET`, `BASE_URL=https://<your-app>.up.railway.app`, `NODE_ENV=production`.
 
 ### Fly.io
 
 ```bash
-fly launch               # accept defaults, no Postgres
-fly volumes create data --size 1
-# edit fly.toml: add [mounts] source="data" destination="/app/data"
-fly secrets set SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-fly secrets set BASE_URL=https://<your-app>.fly.dev NODE_ENV=production
+fly launch                           # accept defaults, do NOT add Fly's Postgres here
+fly postgres create --name vending-db   # provision managed pg
+fly postgres attach vending-db       # sets DATABASE_URL on the app
+fly secrets set \
+  SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+  BASE_URL=https://<your-app>.fly.dev \
+  NODE_ENV=production
 fly deploy
 ```
 
-### Any VPS (systemd)
+### Any VPS (systemd + external Postgres)
 
 ```bash
-# on the server
 git clone <this-repo> /opt/vending-request
 cd /opt/vending-request
 npm install --production
 cp .env.example .env
-# edit .env: set SESSION_SECRET, BASE_URL=https://yourdomain, NODE_ENV=production
+# edit .env: DATABASE_URL, SESSION_SECRET, BASE_URL=https://yourdomain, NODE_ENV=production
 ```
 
 `/etc/systemd/system/vending-request.service`:
@@ -141,39 +138,49 @@ WantedBy=multi-user.target
 systemctl enable --now vending-request
 ```
 
-Put nginx/Caddy in front for TLS.
+Put nginx or Caddy in front for TLS.
 
 ## End-to-end flow
 
-1. **Operator** visits `/`, clicks **Sign up**, creates `alice` / `hunter22222`.
-2. Lands on **Dashboard**. Clicks **+ New Machine**, names it "Lobby Vending".
-3. On the machine detail page, there's a QR code, a public URL, and a **Print poster** button.
-4. Operator prints the poster, tapes it to the vending machine.
-5. **Customer** walks up, opens their phone camera, scans the QR, lands on `/r/<token>`.
-6. Fills in "Flamin' Hot Cheetos" + Snack + optional notes, submits. Sees a thank-you page.
-7. Operator refreshes the dashboard, sees "1 new", clicks into the machine, marks it **Addressed** once they've restocked.
+1. **Operator** visits `/`, signs up.
+2. **Dashboard** → + New machine → names it "Lobby Vending".
+3. Machine detail page shows a QR, the public URL, a print poster button, and a download PNG button.
+4. Operator prints the poster, tapes it to the machine.
+5. **Customer** scans the QR → sees a clean 2-field form (product + phone) → submits → sees a thank-you page.
+6. **Operator** refreshes the dashboard — the request appears as a card under the matching machine, with a tap-to-call link on the customer's phone number. Mark **Addressed** or **Dismiss** with one click.
 
-## Security notes
+## Project layout
 
-- Passwords are hashed with bcrypt (cost factor 12).
-- Sessions are stored server-side in a separate SQLite file, cookies are `httpOnly` + `sameSite=lax`, and `secure` in production.
-- All state-changing requests require a CSRF token (stored in the session, injected into every form). Public `POST /r/:token` is exempt (anonymous users have no session) but is rate-limited to 5 submissions per minute per IP and includes a honeypot field.
-- Every operator-scoped query uses `WHERE operator_id = ?` so operator A can never see operator B's machines or requests.
-- Strict CSP (`default-src 'self'`, no inline scripts, no inline styles).
-- Machine public tokens are 128-bit random hex — not guessable.
+```
+server.js                 # Express app wiring, async boot, /healthz
+db.js                     # pg pool + schema init + query helpers
+lib/tokens.js             # crypto-random public + CSRF tokens
+lib/qr.js                 # QR PNG buffer (cached per URL)
+middleware/requireAuth.js # Redirect unauth'd users to /login
+middleware/csrf.js        # Issue + verify CSRF tokens
+routes/auth.js            # /signup, /login, /logout
+routes/dashboard.js       # /dashboard, /machines/*, /requests/:id/status
+routes/public.js          # /r/:token customer form (2 fields)
+views/                    # EJS templates (minimalist)
+public/                   # styles.css, app.js, favicon
+docker-compose.yml        # Local Postgres for dev
+render.yaml               # One-click Render blueprint
+```
 
-## Backup
+## Security
 
-Back up `data/app.sqlite` (and optionally `data/sessions.sqlite`, though losing it just logs everyone out). A cron that copies the file somewhere safe is sufficient for most operators.
+- Passwords hashed with bcrypt (cost 12).
+- Sessions stored server-side in Postgres (`user_sessions` table), `httpOnly` + `sameSite=lax`, `secure` in production.
+- CSRF tokens on every POST (session-bound).
+- Public `POST /r/:token` is exempt from CSRF (anonymous users have no session), rate-limited to 5/min/IP, and includes a honeypot field for bots.
+- Every operator-scoped query uses `WHERE operator_id = $N` — no IDOR possible.
+- Strict Content Security Policy (`default-src 'self'`, no inline scripts, no inline styles).
+- Machine public tokens are 128-bit random hex.
 
-## Roadmap (not built yet)
+## Health check
 
-- Email/SMS notifications to the operator on new requests
-- Password reset flow
-- Team members on a single operator account
-- Analytics: top requested products, request trends over time
-- NFC tag write helper (a companion that writes the same URL to an NTAG sticker)
+`GET /healthz` returns `{"ok": true}` after verifying Postgres connectivity. Wire your uptime monitor / platform health check to this path.
 
 ## License
 
-MIT (do whatever, no warranty).
+MIT.

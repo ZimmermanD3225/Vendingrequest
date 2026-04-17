@@ -1,0 +1,30 @@
+# Render blueprint: provisions the web service AND a managed Postgres db in one shot.
+# Use it by clicking "New Blueprint" in the Render dashboard and pointing at this repo,
+# OR with the "Deploy to Render" button in the README.
+services:
+  - type: web
+    name: vending-request
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: BASE_URL
+        sync: false          # you fill this in after first deploy with your .onrender.com URL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vending-request-db
+          property: connectionString
+
+databases:
+  - name: vending-request-db
+    plan: free
+    databaseName: vending
+    user: vending

@@ -1,7 +1,7 @@
 {
   "name": "vending-request",
-  "version": "1.0.0",
-  "description": "Hosted request form for vending machine operators. Each machine gets its own QR code; customers scan and submit product requests; operators log in to view them.",
+  "version": "2.0.0",
+  "description": "Hosted request form for vending machine operators. Each machine gets its own QR code; customers scan, type a product + phone, submit. Operators see requests in a minimalist dashboard.",
   "private": true,
   "engines": {
     "node": ">=20"
@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.3.0",
-    "better-sqlite3-session-store": "^0.1.0",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
+    "pg": "^8.13.1",
     "qrcode": "^1.5.4"
   }
 }

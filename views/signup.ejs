@@ -1,40 +1,37 @@
 <%- include('_header') %>
 
-<div class="card narrow">
-  <h1>Create an operator account</h1>
-  <% if (error) { %>
-    <div class="alert alert-error"><%= error %></div>
-  <% } %>
-  <form action="/signup" method="post">
+<div class="auth">
+  <h1>Create an account</h1>
+  <p class="muted">Takes 30 seconds. No card required.</p>
+
+  <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+  <form action="/signup" method="post" class="stack">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-    <label>
-      Username
+    <label>Username
       <input type="text" name="username" required minlength="3" maxlength="32"
              value="<%= form.username || '' %>" autofocus autocomplete="username">
     </label>
 
-    <label>
-      Password
+    <label>Password
       <input type="password" name="password" required minlength="8" autocomplete="new-password">
-      <small>At least 8 characters.</small>
+      <small>8+ characters.</small>
     </label>
 
-    <label>
-      Business name <span class="hint">(optional)</span>
+    <label>Business name <span class="muted">(optional)</span>
       <input type="text" name="business_name" maxlength="120"
              value="<%= form.business_name || '' %>">
     </label>
 
-    <label>
-      Email <span class="hint">(optional)</span>
+    <label>Email <span class="muted">(optional)</span>
       <input type="email" name="email" maxlength="120"
              value="<%= form.email || '' %>" autocomplete="email">
     </label>
 
-    <button type="submit" class="btn btn-primary btn-lg btn-block">Create account</button>
+    <button type="submit" class="btn btn-dark btn-lg btn-block">Create account</button>
   </form>
-  <p class="muted">Already have one? <a href="/login">Log in</a>.</p>
+  <p class="muted center">Have one? <a href="/login">Log in</a>.</p>
 </div>
 
 <%- include('_footer') %>

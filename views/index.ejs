@@ -3,32 +3,34 @@
 <section class="hero">
   <h1>Let customers tell you what to stock.</h1>
   <p class="lede">
-    Stick a QR code on your vending machine. Customers scan, pick a product,
-    submit. You get a tidy dashboard of requests per machine — no paper notes,
-    no angry snack threats.
+    Stick a QR code on your vending machine. Customers scan, type the product
+    they want, submit their number. You get a clean dashboard of requests per machine.
   </p>
-  <div class="cta-row">
+  <div class="cta">
     <% if (currentUser) { %>
-      <a class="btn btn-primary btn-lg" href="/dashboard">Go to your dashboard</a>
+      <a class="btn btn-dark btn-lg" href="/dashboard">Open dashboard</a>
     <% } else { %>
-      <a class="btn btn-primary btn-lg" href="/signup">Get started — it's free</a>
-      <a class="btn btn-ghost btn-lg" href="/login">I have an account</a>
+      <a class="btn btn-dark btn-lg" href="/signup">Get started</a>
+      <a class="btn btn-ghost btn-lg" href="/login">Log in</a>
     <% } %>
   </div>
 </section>
 
-<section class="features">
-  <div class="feature">
-    <h3>1. Add a machine</h3>
-    <p>Name it, note its location. Each machine gets its own unguessable link + QR code.</p>
+<section class="steps">
+  <div class="step">
+    <span class="step-num">01</span>
+    <h3>Add a machine</h3>
+    <p>Name it, note its location. It gets its own private link + QR code.</p>
   </div>
-  <div class="feature">
-    <h3>2. Print the QR sticker</h3>
-    <p>One-click printable poster. Tape it to the machine near the selection buttons.</p>
+  <div class="step">
+    <span class="step-num">02</span>
+    <h3>Print the sticker</h3>
+    <p>One-click printable poster. Tape it by the selection buttons.</p>
   </div>
-  <div class="feature">
-    <h3>3. Watch requests roll in</h3>
-    <p>Customers scan, submit a snack or drink they want, you see it live on your dashboard.</p>
+  <div class="step">
+    <span class="step-num">03</span>
+    <h3>Watch requests arrive</h3>
+    <p>Customers scan, submit a product + their number. You see it live.</p>
   </div>
 </section>
 

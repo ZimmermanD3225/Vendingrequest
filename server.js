@@ -4,10 +4,9 @@ const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
-const SqliteStore = require('better-sqlite3-session-store')(session);
-const Database = require('better-sqlite3');
-const fs = require('fs');
+const PgSession = require('connect-pg-simple')(session);
 
+const { pool, initSchema } = require('./db');
 const { csrfIssue, csrfVerify } = require('./middleware/csrf');
 
 const authRoutes = require('./routes/auth');
@@ -33,7 +32,6 @@ app.use(
         'script-src': ["'self'"],
         'form-action': ["'self'"],
         'frame-ancestors': ["'none'"],
-        // In dev we serve over plain http://localhost; don't force https upgrades.
         'upgrade-insecure-requests': IS_PROD ? [] : null,
       },
     },
@@ -42,15 +40,12 @@ app.use(
 app.use(express.urlencoded({ extended: false, limit: '32kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-const sessionDb = new Database(path.join(DATA_DIR, 'sessions.sqlite'));
-
 app.use(
   session({
-    store: new SqliteStore({
-      client: sessionDb,
-      expired: { clear: true, intervalMs: 15 * 60 * 1000 },
+    store: new PgSession({
+      pool,
+      tableName: 'user_sessions',
+      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET || 'dev-insecure-secret-change-me',
     resave: false,
@@ -59,25 +54,31 @@ app.use(
       httpOnly: true,
       sameSite: 'lax',
       secure: IS_PROD,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
 );
 
 app.use(csrfIssue);
-// Public submit endpoints don't have a session; exempt them from CSRF.
 app.use(csrfVerify(['/r/']));
 
-// Expose session user + helpers to all templates
 app.use((req, res, next) => {
   res.locals.currentUser = req.session && req.session.username
-    ? { id: req.session.operatorId, username: req.session.username }
+    ? { id: req.session.operatorId, username: req.session.username, businessName: req.session.businessName }
     : null;
-  res.locals.pageTitle = 'Vending Request';
   next();
 });
 
-app.get('/', (req, res) => {
+app.get('/healthz', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
+});
+
+app.get('/', (_req, res) => {
   res.render('index', { title: 'Vending Request' });
 });
 
@@ -85,7 +86,7 @@ app.use(authRoutes);
 app.use(dashboardRoutes);
 app.use(publicRoutes);
 
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).render('error', {
     title: 'Not found',
     message: "We couldn't find that page.",
@@ -103,7 +104,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Vending Request listening on http://localhost:${PORT}`);
-  console.log(`BASE_URL for QR codes: ${process.env.BASE_URL || 'http://localhost:' + PORT}`);
-});
+(async () => {
+  try {
+    await initSchema();
+    app.listen(PORT, () => {
+      console.log(`Vending Request listening on http://localhost:${PORT}`);
+      console.log(`BASE_URL: ${process.env.BASE_URL || 'http://localhost:' + PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to init database:', err);
+    process.exit(1);
+  }
+})();

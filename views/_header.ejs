@@ -3,18 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title><%= title %> — Vending Request</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/app.js" defer></script>
 </head>
 <body>
-  <header class="site-header">
+  <header class="topbar">
     <a class="brand" href="/">
-      <span class="brand-mark">VR</span>
+      <span class="brand-mark"></span>
       <span class="brand-text">Vending Request</span>
     </a>
-    <nav class="site-nav">
+    <nav class="topnav">
       <% if (currentUser) { %>
+        <span class="biz muted"><%= currentUser.businessName || currentUser.username %></span>
         <a href="/dashboard">Dashboard</a>
         <form action="/logout" method="post" class="inline-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -22,8 +25,8 @@
         </form>
       <% } else { %>
         <a href="/login">Log in</a>
-        <a href="/signup" class="btn btn-primary btn-sm">Sign up</a>
+        <a href="/signup" class="btn btn-dark btn-sm">Sign up</a>
       <% } %>
     </nav>
   </header>
-  <main class="container">
+  <main class="main">

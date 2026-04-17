@@ -1,32 +1,40 @@
 <%- include('_header') %>
 
-<div class="page-header">
+<div class="page-head">
   <div>
+    <p class="muted small"><a href="/dashboard">← Dashboard</a></p>
     <h1><%= machine.name %></h1>
     <% if (machine.location) { %>
       <p class="muted"><%= machine.location %></p>
     <% } %>
   </div>
-  <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
 </div>
 
-<div class="two-col">
-  <section class="card">
-    <h2>Customer QR code</h2>
-    <img class="qr" src="/machines/<%= machine.id %>/qr.png" alt="QR code for <%= machine.name %>">
-    <p class="muted small">Customers scan this to submit requests.</p>
-    <p class="public-url">
-      <span class="muted small">Public URL:</span><br>
+<div class="twocol">
+  <aside class="qr-panel">
+    <img class="qr" src="/machines/<%= machine.id %>/qr.png" alt="QR code">
+    <p class="muted small center">Customers scan this to submit requests.</p>
+    <div class="url-block">
+      <p class="muted tiny">PUBLIC URL</p>
       <code><%= publicUrl %></code>
-    </p>
-    <div class="row-actions">
-      <a class="btn btn-primary" href="/machines/<%= machine.id %>/qr/print" target="_blank">Print poster</a>
-      <a class="btn btn-ghost" href="/machines/<%= machine.id %>/qr.png" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
     </div>
-  </section>
+    <div class="actions">
+      <a class="btn btn-dark btn-block" href="/machines/<%= machine.id %>/qr/print" target="_blank">Print poster</a>
+      <a class="btn btn-ghost btn-block" href="/machines/<%= machine.id %>/qr.png" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
+    </div>
 
-  <section class="card">
-    <h2>Requests</h2>
+    <details class="danger-zone">
+      <summary>Delete machine</summary>
+      <p class="muted tiny">Removes the QR link and all requests. Permanent.</p>
+      <form action="/machines/<%= machine.id %>/delete" method="post"
+            data-confirm="Delete this machine and all its requests? This cannot be undone.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-danger btn-sm btn-block">Delete</button>
+      </form>
+    </details>
+  </aside>
+
+  <section class="requests">
     <nav class="tabs">
       <a class="<%= status === 'new' ? 'active' : '' %>" href="?status=new">New</a>
       <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
@@ -34,26 +42,27 @@
     </nav>
 
     <% if (requests.length === 0) { %>
-      <p class="muted">No <%= status %> requests.</p>
+      <div class="empty mini">
+        <p class="muted">No <%= status %> requests.</p>
+      </div>
     <% } else { %>
-      <ul class="request-list">
+      <ul class="req-list">
         <% requests.forEach((r) => { %>
-          <li class="request">
-            <div class="request-main">
+          <li class="req">
+            <div class="req-main">
               <h3><%= r.product_name %></h3>
-              <p class="meta">
-                <% if (r.category) { %><span class="tag"><%= r.category %></span><% } %>
-                <span class="muted small"><%= r.created_at %> UTC</span>
+              <p class="req-meta">
+                <a href="tel:<%= r.phone.replace(/[^0-9+]/g, '') %>" class="phone"><%= r.phone %></a>
+                <span class="sep">·</span>
+                <time class="muted small" datetime="<%= r.created_at.toISOString ? r.created_at.toISOString() : r.created_at %>"><%= r.created_at.toLocaleString ? r.created_at.toLocaleString() : r.created_at %></time>
               </p>
-              <% if (r.notes) { %><p class="notes"><%= r.notes %></p><% } %>
-              <% if (r.contact) { %><p class="muted small">Contact: <%= r.contact %></p><% } %>
             </div>
-            <div class="request-actions">
+            <div class="req-actions">
               <% if (status !== 'addressed') { %>
                 <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="status" value="addressed">
-                  <button class="btn btn-sm btn-primary" type="submit">Mark addressed</button>
+                  <button class="btn btn-sm btn-dark" type="submit">Addressed</button>
                 </form>
               <% } %>
               <% if (status !== 'dismissed') { %>
@@ -77,15 +86,5 @@
     <% } %>
   </section>
 </div>
-
-<section class="card danger-zone">
-  <h2>Danger zone</h2>
-  <p class="muted small">Deleting this machine removes its QR code link and all its requests. This cannot be undone.</p>
-  <form action="/machines/<%= machine.id %>/delete" method="post"
-        onsubmit="return confirm('Delete this machine and all its requests? This cannot be undone.');">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <button type="submit" class="btn btn-danger btn-sm">Delete machine</button>
-  </form>
-</section>
 
 <%- include('_footer') %>

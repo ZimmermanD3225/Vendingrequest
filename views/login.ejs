@@ -1,27 +1,25 @@
 <%- include('_header') %>
 
-<div class="card narrow">
+<div class="auth">
   <h1>Log in</h1>
-  <% if (error) { %>
-    <div class="alert alert-error"><%= error %></div>
-  <% } %>
-  <form action="/login" method="post">
+
+  <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+  <form action="/login" method="post" class="stack">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-    <label>
-      Username
+    <label>Username
       <input type="text" name="username" required value="<%= form.username || '' %>"
              autofocus autocomplete="username">
     </label>
 
-    <label>
-      Password
+    <label>Password
       <input type="password" name="password" required autocomplete="current-password">
     </label>
 
-    <button type="submit" class="btn btn-primary btn-lg btn-block">Log in</button>
+    <button type="submit" class="btn btn-dark btn-lg btn-block">Log in</button>
   </form>
-  <p class="muted">New here? <a href="/signup">Create an account</a>.</p>
+  <p class="muted center">New here? <a href="/signup">Create an account</a>.</p>
 </div>
 
 <%- include('_footer') %>

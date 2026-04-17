@@ -3,58 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Request — <%= machine.name %></title>
+  <meta name="color-scheme" content="light">
+  <title>Request a product</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
-<body class="public-body">
-  <main class="container narrow">
-    <h1>Request a product</h1>
-    <p class="muted"><strong><%= machine.name %></strong><% if (machine.location) { %> · <%= machine.location %><% } %></p>
+<body class="public">
+  <main class="public-main">
+    <header class="public-head">
+      <h1>What should we stock?</h1>
+      <p class="muted"><%= machine.name %><% if (machine.location) { %> · <%= machine.location %><% } %></p>
+    </header>
 
-    <% if (error) { %>
-      <div class="alert alert-error"><%= error %></div>
-    <% } %>
+    <% if (error) { %><div class="alert"><%= error %></div><% } %>
 
-    <form action="/r/<%= machine.public_token %>" method="post" class="card">
-      <label>
-        What product do you want?
-        <input type="text" name="product_name" required maxlength="80" autofocus
-               value="<%= form.product_name || '' %>"
+    <form action="/r/<%= machine.public_token %>" method="post" class="public-form">
+      <label class="big-field">
+        <span class="label">Product</span>
+        <input type="text" name="product_name" required maxlength="120"
+               value="<%= form.product_name || '' %>" autofocus
+               autocomplete="off"
                placeholder="e.g. Flamin' Hot Cheetos">
       </label>
 
-      <label>
-        Category
-        <select name="category">
-          <option value="">— choose —</option>
-          <option value="snack" <%= form.category === 'snack' ? 'selected' : '' %>>Snack</option>
-          <option value="beverage" <%= form.category === 'beverage' ? 'selected' : '' %>>Beverage</option>
-          <option value="other" <%= form.category === 'other' ? 'selected' : '' %>>Other</option>
-        </select>
+      <label class="big-field">
+        <span class="label">Your phone</span>
+        <input type="tel" name="phone" required maxlength="40"
+               value="<%= form.phone || '' %>"
+               inputmode="tel"
+               autocomplete="tel"
+               placeholder="555-123-4567">
       </label>
 
-      <label>
-        Anything else? <span class="hint">(optional)</span>
-        <textarea name="notes" rows="3" maxlength="500"
-                  placeholder="Size, flavor, how often you'd buy it..."><%= form.notes || '' %></textarea>
-      </label>
-
-      <label>
-        Your email or phone <span class="hint">(optional, only if you want a reply)</span>
-        <input type="text" name="contact" maxlength="120"
-               value="<%= form.contact || '' %>">
-      </label>
-
-      <!-- honeypot: real users leave this blank; bots fill it -->
+      <!-- honeypot: real users leave blank -->
       <div class="hp" aria-hidden="true">
         <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg btn-block">Submit request</button>
+      <button type="submit" class="btn btn-dark btn-xl btn-block">Submit</button>
+      <p class="muted tiny center">No account needed. Your number is only shared with the operator.</p>
     </form>
-
-    <p class="muted small">No account required. The operator of this machine will see your request.</p>
   </main>
 </body>
 </html>

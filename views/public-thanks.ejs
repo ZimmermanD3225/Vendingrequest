@@ -3,17 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>Thanks!</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
-<body class="public-body">
-  <main class="container narrow">
-    <div class="card success">
-      <h1>Thanks!</h1>
-      <p>Your request has been sent to the operator of <strong><%= machine.name %></strong>.</p>
-      <p class="muted">No guarantees — but every request helps them figure out what to stock.</p>
-      <a class="btn btn-primary" href="/r/<%= machine.public_token %>">Submit another request</a>
+<body class="public">
+  <main class="public-main">
+    <div class="thanks">
+      <div class="check">✓</div>
+      <h1>Got it</h1>
+      <p class="muted">The operator of <strong><%= machine.name %></strong> will see your request.</p>
+      <a class="btn btn-ghost" href="/r/<%= machine.public_token %>">Submit another</a>
     </div>
   </main>
 </body>
