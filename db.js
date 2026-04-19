@@ -39,6 +39,10 @@ async function initSchema() {
       ON operators (LOWER(email)) WHERE email IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_operators_verification_token
       ON operators (verification_token) WHERE verification_token IS NOT NULL;
+    ALTER TABLE operators ADD COLUMN IF NOT EXISTS reset_token      TEXT;
+    ALTER TABLE operators ADD COLUMN IF NOT EXISTS reset_expires_at TIMESTAMPTZ;
+    CREATE INDEX IF NOT EXISTS idx_operators_reset_token
+      ON operators (reset_token) WHERE reset_token IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS machines (
       id              SERIAL PRIMARY KEY,
@@ -110,6 +114,30 @@ const q = {
              verification_expires_at = $2
        WHERE id = $3`,
       [token, expiresAt, id]
+    );
+  },
+  async getOperatorByResetToken(token) {
+    const { rows } = await pool.query(
+      `SELECT * FROM operators WHERE reset_token = $1`, [token]
+    );
+    return rows[0];
+  },
+  async setResetToken(id, token, expiresAt) {
+    await pool.query(
+      `UPDATE operators SET reset_token = $1, reset_expires_at = $2 WHERE id = $3`,
+      [token, expiresAt, id]
+    );
+  },
+  async clearResetToken(id) {
+    await pool.query(
+      `UPDATE operators SET reset_token = NULL, reset_expires_at = NULL WHERE id = $1`,
+      [id]
+    );
+  },
+  async updatePasswordHash(id, passwordHash) {
+    await pool.query(
+      `UPDATE operators SET password_hash = $1 WHERE id = $2`,
+      [passwordHash, id]
     );
   },
   async markEmailVerified(id) {

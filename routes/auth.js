@@ -2,8 +2,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { q } = require('../db');
-const { generateVerificationToken } = require('../lib/tokens');
-const { sendVerificationEmail } = require('../lib/email');
+const { generateVerificationToken, generateResetToken } = require('../lib/tokens');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../lib/email');
 const { setFlash } = require('../middleware/flash');
 const { seedDemoMachines } = require('../lib/demo-seed');
 
@@ -12,6 +12,7 @@ const router = express.Router();
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,32}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 // Throttle verification-email resends per IP.
 const resendLimiter = rateLimit({
@@ -198,6 +199,99 @@ router.get('/verify/:token', async (req, res, next) => {
     await q.markEmailVerified(op.id);
     delete req.session.pendingVerifyOperatorId;
     setFlash(req, 'success', 'Email verified. You can log in now.');
+    res.redirect('/login');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -------------------- Password reset --------------------
+
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many password reset attempts. Please wait and try again.',
+});
+
+router.get('/forgot-password', (req, res) => {
+  if (req.session.operatorId) return res.redirect('/dashboard');
+  res.render('forgot-password', { title: 'Forgot password', error: null });
+});
+
+router.post('/forgot-password', resetLimiter, async (req, res, next) => {
+  try {
+    const email = String(req.body.email || '').trim();
+    const op = await q.getOperatorByEmail(email);
+    if (op) {
+      const token = generateResetToken();
+      const expires = new Date(Date.now() + RESET_TTL_MS);
+      await q.setResetToken(op.id, token, expires);
+      await sendPasswordResetEmail({
+        to: op.email,
+        resetUrl: `${baseUrl()}/reset-password/${token}`,
+        businessName: op.business_name || op.username,
+      });
+    }
+    // Always show the same message to prevent email enumeration.
+    setFlash(req, 'success', 'If an account with that email exists, we sent a reset link. Check your inbox.');
+    res.redirect('/forgot-password');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/reset-password/:token', async (req, res, next) => {
+  try {
+    const token = String(req.params.token || '');
+    const op = await q.getOperatorByResetToken(token);
+    if (!op) {
+      return res.status(400).render('verify-expired', {
+        title: 'Invalid link',
+        message: "This reset link isn't valid. It may have been used already, or a newer one was sent.",
+      });
+    }
+    if (op.reset_expires_at && new Date(op.reset_expires_at) < new Date()) {
+      return res.status(400).render('verify-expired', {
+        title: 'Link expired',
+        message: 'This reset link has expired. Please request a new one.',
+      });
+    }
+    res.render('reset-password', { title: 'Reset password', error: null, token });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/reset-password/:token', async (req, res, next) => {
+  try {
+    const token = String(req.params.token || '');
+    const password = String(req.body.password || '');
+    const confirm = String(req.body.password_confirm || '');
+
+    const renderError = (msg) =>
+      res.status(400).render('reset-password', { title: 'Reset password', error: msg, token });
+
+    const op = await q.getOperatorByResetToken(token);
+    if (!op || (op.reset_expires_at && new Date(op.reset_expires_at) < new Date())) {
+      return res.status(400).render('verify-expired', {
+        title: 'Link expired',
+        message: 'This reset link has expired or is invalid. Please request a new one.',
+      });
+    }
+    if (password.length < 8) {
+      return renderError('Password must be at least 8 characters.');
+    }
+    if (password !== confirm) {
+      return renderError('Passwords do not match.');
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    await q.updatePasswordHash(op.id, hash);
+    await q.clearResetToken(op.id);
+
+    setFlash(req, 'success', 'Password updated. You can log in now.');
     res.redirect('/login');
   } catch (err) {
     next(err);
