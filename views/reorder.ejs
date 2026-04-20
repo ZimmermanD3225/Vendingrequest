@@ -36,14 +36,15 @@
               <p class="muted small"><%= item.machine_names.join(', ') %></p>
             </div>
             <div class="req-actions">
-              <% if (groupName === 'Unassigned' && suppliers.length > 0) { %>
+              <% if (suppliers.length > 0) { %>
                 <form action="/reorder/link" method="post" class="inline-form">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="product_name" value="<%= item.product_name %>">
+                  <% const currentSup = productToSupplier[item.product_name]; %>
                   <select name="supplier_id" onchange="this.form.submit()" class="select-sm">
-                    <option value="">Assign supplier...</option>
+                    <option value=""><%= currentSup ? 'Change supplier...' : 'Assign supplier...' %></option>
                     <% suppliers.forEach((s) => { %>
-                      <option value="<%= s.id %>"><%= s.name %></option>
+                      <option value="<%= s.id %>" <%= currentSup && currentSup.id === s.id ? 'disabled' : '' %>><%= s.name %></option>
                     <% }) %>
                   </select>
                 </form>
