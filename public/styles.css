@@ -263,12 +263,70 @@ small { font-size: 0.85em; }
 .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: var(--radius); margin-bottom: 16px; }
 [data-theme="dark"] .alert-success { background: #052e16; color: #86efac; border-color: #166534; }
 
-/* Restock form rows */
-.restock-row {
-  display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+/* Restock page */
+.restock-layout {
+  display: grid; gap: 28px; grid-template-columns: 1fr;
+  max-width: 720px;
 }
-.restock-row input[type="text"] { flex: 1; }
-.restock-row input[type="number"] { width: 80px; }
+.restock-form-card, .restock-history-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.restock-history-card h2 { font-size: 1.1rem; margin: 0 0 16px; }
+.restock-row {
+  display: flex; gap: 10px; align-items: center; margin-bottom: 10px;
+}
+.restock-input-name {
+  flex: 1; padding: 12px 14px; font-size: 1rem;
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--input-bg); color: var(--text); font-family: inherit;
+  transition: border-color .15s var(--ease), box-shadow .2s var(--ease);
+}
+.restock-input-name:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--focus-ring); }
+.restock-input-qty {
+  width: 80px; padding: 12px 10px; font-size: 1rem; text-align: center;
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--input-bg); color: var(--text); font-family: inherit;
+  -moz-appearance: textfield; appearance: textfield;
+  transition: border-color .15s var(--ease), box-shadow .2s var(--ease);
+}
+.restock-input-qty::-webkit-inner-spin-button,
+.restock-input-qty::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.restock-input-qty:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--focus-ring); }
+.restock-remove {
+  width: 32px; height: 32px; border: none; background: none;
+  color: var(--muted); font-size: 1.3rem; cursor: pointer;
+  border-radius: var(--radius); transition: background .1s, color .1s;
+}
+.restock-remove:hover { background: var(--danger-soft-bg); color: var(--danger); }
+.restock-notes { margin-top: 16px; }
+.restock-notes label { display: block; margin-bottom: 6px; }
+.restock-notes textarea {
+  width: 100%; padding: 12px 14px; font-size: 0.95rem;
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--input-bg); color: var(--text); font-family: inherit;
+  resize: vertical;
+}
+.restock-notes textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--focus-ring); }
+
+/* Restock history */
+.restock-history-list { display: flex; flex-direction: column; gap: 12px; }
+.restock-entry {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.restock-entry-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.restock-chip {
+  display: inline-block; font-size: 0.85rem;
+  background: var(--accent); color: var(--accent-contrast);
+  padding: 3px 10px; border-radius: 99px;
+}
+.restock-entry-meta { font-size: 0.82rem; }
 
 /* Reorder page */
 .reorder-group { margin-bottom: 32px; }

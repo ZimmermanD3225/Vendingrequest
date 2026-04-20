@@ -4,55 +4,57 @@
   <div>
     <p class="muted small"><a href="/machines/<%= machine.id %>">← <%= machine.name %></a></p>
     <h1>Log restock</h1>
+    <p class="muted">Record what you loaded into this machine.</p>
   </div>
 </div>
 
-<div class="twocol">
-  <section style="max-width:520px;">
+<div class="restock-layout">
+  <section class="restock-form-card">
     <% if (error) { %><div class="alert"><%= error %></div><% } %>
 
-    <form action="/machines/<%= machine.id %>/restocks" method="post" class="stack" id="restock-form">
+    <form action="/machines/<%= machine.id %>/restocks" method="post" id="restock-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
       <div id="restock-items">
         <div class="restock-row">
-          <input type="text" name="item_name" placeholder="Product name" required autocomplete="off">
-          <input type="number" name="item_qty" placeholder="Qty" min="1" required style="width:80px;">
-          <button type="button" class="btn btn-sm btn-ghost restock-remove" style="display:none;">&times;</button>
+          <input type="text" name="item_name" class="restock-input-name" placeholder="Product name" required autocomplete="off">
+          <input type="number" name="item_qty" class="restock-input-qty" placeholder="Qty" min="1" required>
+          <button type="button" class="restock-remove" style="display:none;" aria-label="Remove">&times;</button>
         </div>
       </div>
 
-      <button type="button" class="btn btn-ghost btn-sm" id="add-restock-row">+ Add item</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="add-restock-row" style="margin-top:4px;">+ Add another item</button>
 
-      <label>Notes <span class="muted">(optional)</span>
+      <div class="restock-notes">
+        <label class="muted small">Notes <span class="muted">(optional)</span></label>
         <textarea name="notes" rows="2" maxlength="500" placeholder="Any notes about this visit..."></textarea>
-      </label>
+      </div>
 
-      <button type="submit" class="btn btn-dark btn-lg btn-block">Save restock</button>
+      <button type="submit" class="btn btn-dark btn-lg btn-block" style="margin-top:16px;">Save restock</button>
     </form>
   </section>
 
-  <section class="requests">
+  <section class="restock-history-card">
     <h2>Restock history</h2>
     <% if (restocks.length === 0) { %>
-      <div class="empty mini"><p class="muted">No restocks logged yet.</p></div>
+      <p class="muted" style="padding:24px 0;text-align:center;">No restocks logged yet. Log your first one above.</p>
     <% } else { %>
-      <ul class="req-list">
+      <div class="restock-history-list">
         <% restocks.forEach((r) => { %>
-          <li class="req">
-            <div class="req-main">
-              <h3>
-                <% const items = Array.isArray(r.items) ? r.items : JSON.parse(r.items || '[]'); %>
-                <%= items.map(i => i.qty + 'x ' + i.name).join(', ') %>
-              </h3>
-              <p class="req-meta">
-                <time class="muted small"><%= new Date(r.created_at).toLocaleString() %></time>
-                <% if (r.notes) { %><span class="sep">·</span><span class="muted small"><%= r.notes %></span><% } %>
-              </p>
+          <div class="restock-entry">
+            <div class="restock-entry-items">
+              <% const items = Array.isArray(r.items) ? r.items : JSON.parse(r.items || '[]'); %>
+              <% items.forEach((i) => { %>
+                <span class="restock-chip"><strong><%= i.qty %>x</strong> <%= i.name %></span>
+              <% }) %>
             </div>
-          </li>
+            <div class="restock-entry-meta">
+              <time class="muted small"><%= new Date(r.created_at).toLocaleString() %></time>
+              <% if (r.notes) { %><span class="muted small"> — <%= r.notes %></span><% } %>
+            </div>
+          </div>
         <% }) %>
-      </ul>
+      </div>
     <% } %>
   </section>
 </div>
