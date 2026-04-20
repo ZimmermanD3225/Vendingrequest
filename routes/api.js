@@ -214,12 +214,21 @@ router.get('/machines/:id', apiAuth, async (req, res, next) => {
       return res.status(404).json({ ok: false, error: 'Machine not found.' });
     }
 
-    const type = req.query.type === 'issue' ? 'issue' : 'request';
-    const status = ['new', 'addressed', 'dismissed'].includes(req.query.status)
-      ? req.query.status
-      : 'new';
-    const filterType = status === 'new' ? type : null;
-    const requests = await q.listRequestsForMachine(machine.id, status, filterType);
+    // If 'all' is passed (or no status), return all requests for the iOS app
+    const wantAll = req.query.status === 'all' || !req.query.status;
+    let requests;
+    if (wantAll) {
+      const { rows } = await pool.query(
+        `SELECT * FROM requests WHERE machine_id = $1 ORDER BY created_at DESC`,
+        [machine.id]
+      );
+      requests = rows;
+    } else {
+      const type = req.query.type === 'issue' ? 'issue' : 'request';
+      const status = req.query.status;
+      const filterType = status === 'new' ? type : null;
+      requests = await q.listRequestsForMachine(machine.id, status, filterType);
+    }
 
     res.json({ ok: true, machine, requests });
   } catch (err) {
