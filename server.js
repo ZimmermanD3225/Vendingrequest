@@ -13,6 +13,7 @@ const { flashMiddleware } = require('./middleware/flash');
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const publicRoutes = require('./routes/public');
+const apiRoutes = require('./routes/api');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -38,6 +39,7 @@ app.use(
     },
   })
 );
+app.use(express.json({ limit: '32kb' }));
 app.use(express.urlencoded({ extended: true, limit: '32kb' }));
 app.use('/vendor/leaflet', express.static(path.join(__dirname, 'node_modules/leaflet/dist')));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -62,7 +64,7 @@ app.use(
 );
 
 app.use(csrfIssue);
-app.use(csrfVerify(['/r/']));
+app.use(csrfVerify(['/r/', '/api/']));
 app.use(flashMiddleware);
 
 app.use((req, res, next) => {
@@ -85,6 +87,7 @@ app.get('/', (_req, res) => {
   res.render('index', { title: 'Vending Request' });
 });
 
+app.use('/api', apiRoutes);
 app.use(authRoutes);
 app.use(dashboardRoutes);
 app.use(publicRoutes);
