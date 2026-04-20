@@ -133,6 +133,7 @@ router.post('/machines', requireAuth, async (req, res, next) => {
       }
     }
     if (!created) throw new Error('Could not generate a unique machine token.');
+    try { await q.logEvent(req.session.operatorId, 'add_machine', name); } catch (_) {}
     setFlash(req, 'success', `"${name}" is ready. Print the poster and stick it on the machine.`);
     res.redirect(`/machines/${created.id}`);
   } catch (err) {
@@ -200,6 +201,7 @@ router.get('/machines/:id/qr/print', requireAuth, async (req, res, next) => {
       });
     }
     const publicUrl = publicUrlFor(machine.public_token);
+    try { await q.logEvent(req.session.operatorId, 'print_qr', machine.name); } catch (_) {}
     res.render('machine-print', {
       title: `Print — ${machine.name}`,
       machine,

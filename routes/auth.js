@@ -86,6 +86,7 @@ router.post('/signup', async (req, res, next) => {
     });
 
     try { await seedDemoMachines(op.id); } catch (_) { /* non-fatal */ }
+    try { await q.logEvent(op.id, 'signup', form.username); } catch (_) {}
 
     req.session.operatorId = op.id;
     req.session.username = op.username;

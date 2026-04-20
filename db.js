@@ -68,6 +68,15 @@ async function initSchema() {
     );
     CREATE INDEX IF NOT EXISTS idx_requests_machine ON requests(machine_id, status, created_at DESC);
     ALTER TABLE requests ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'request';
+
+    CREATE TABLE IF NOT EXISTS events (
+      id          SERIAL PRIMARY KEY,
+      operator_id INTEGER REFERENCES operators(id) ON DELETE CASCADE,
+      action      TEXT NOT NULL,
+      detail      TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_events_action ON events(action, created_at DESC);
   `);
 }
 
@@ -149,6 +158,14 @@ const q = {
              verification_expires_at = NULL
        WHERE id = $1`,
       [id]
+    );
+  },
+
+  // --- events ---
+  async logEvent(operator_id, action, detail = null) {
+    await pool.query(
+      `INSERT INTO events (operator_id, action, detail) VALUES ($1, $2, $3)`,
+      [operator_id, action, detail]
     );
   },
 

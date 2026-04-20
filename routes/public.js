@@ -31,6 +31,7 @@ router.get('/r/:token', async (req, res, next) => {
         stack: null,
       });
     }
+    try { await q.logEvent(null, 'qr_scan', machine.name); } catch (_) {}
     res.render('public-form', {
       title: `Request a product`,
       machine,
