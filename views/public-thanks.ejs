@@ -18,7 +18,7 @@
         </svg>
       </div>
       <h1>Got it</h1>
-      <p class="muted">The operator of <strong><%= machine.name %></strong> will see your request.</p>
+      <p class="muted">The operator of <strong><%= machine.name %></strong> will see your <%= type === 'issue' ? 'report' : 'request' %>.</p>
       <a class="btn btn-ghost" href="/r/<%= machine.public_token %>">Submit another</a>
     </div>
   </main>

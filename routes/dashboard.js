@@ -151,10 +151,11 @@ router.get('/machines/:id', requireAuth, async (req, res, next) => {
       });
     }
 
+    const type = req.query.type === 'issue' ? 'issue' : 'request';
     const status = ['new', 'addressed', 'dismissed'].includes(req.query.status)
       ? req.query.status
       : 'new';
-    const requests = await q.listRequestsForMachine(machine.id, status);
+    const requests = await q.listRequestsForMachine(machine.id, status, type);
 
     const publicUrl = publicUrlFor(machine.public_token);
     res.render('machine-show', {
@@ -162,6 +163,7 @@ router.get('/machines/:id', requireAuth, async (req, res, next) => {
       machine,
       requests,
       status,
+      type,
       publicUrl,
       qrVersion: qrVersion(publicUrl),
     });

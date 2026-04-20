@@ -91,6 +91,78 @@ router.post('/r/:token', submitLimiter, async (req, res, next) => {
   }
 });
 
+// -------------------- Report an issue --------------------
+
+router.get('/r/:token/issue', async (req, res, next) => {
+  try {
+    const machine = await q.getMachineByToken(req.params.token);
+    if (!machine) {
+      return res.status(404).render('error', {
+        title: 'Not found',
+        message: "That QR code isn't linked to a machine.",
+        stack: null,
+      });
+    }
+    res.render('public-issue', {
+      title: 'Report an issue',
+      machine,
+      error: null,
+      form: {},
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/r/:token/issue', submitLimiter, async (req, res, next) => {
+  try {
+    const machine = await q.getMachineByToken(req.params.token);
+    if (!machine) {
+      return res.status(404).render('error', {
+        title: 'Not found',
+        message: 'Unknown machine.',
+        stack: null,
+      });
+    }
+
+    if (String(req.body.website || '').length > 0) {
+      return res.redirect(`/r/${machine.public_token}/thanks`);
+    }
+
+    const issue = String(req.body.issue || '').trim().slice(0, 300);
+    const phone = parsePhone(req.body.phone);
+
+    if (!issue) {
+      return res.status(400).render('public-issue', {
+        title: 'Report an issue',
+        machine,
+        error: 'Please describe the issue.',
+        form: { issue: req.body.issue, phone: req.body.phone },
+      });
+    }
+    if (!phone) {
+      return res.status(400).render('public-issue', {
+        title: 'Report an issue',
+        machine,
+        error: 'Please enter a valid phone number (at least 7 digits).',
+        form: { issue, phone: req.body.phone },
+      });
+    }
+
+    await q.insertRequest({
+      machine_id: machine.id,
+      product_name: issue,
+      phone,
+      notes: null,
+      type: 'issue',
+    });
+
+    res.redirect(`/r/${machine.public_token}/thanks?type=issue`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/r/:token/thanks', async (req, res, next) => {
   try {
     const machine = await q.getMachineByToken(req.params.token);
@@ -101,7 +173,7 @@ router.get('/r/:token/thanks', async (req, res, next) => {
         stack: null,
       });
     }
-    res.render('public-thanks', { title: 'Thanks!', machine });
+    res.render('public-thanks', { title: 'Thanks!', machine, type: req.query.type || 'request' });
   } catch (err) {
     next(err);
   }

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Report an issue</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/app.js" defer></script>
+</head>
+<body class="public">
+  <main class="public-main">
+    <header class="public-head">
+      <h1>Report an issue</h1>
+      <p class="muted"><%= machine.name %><% if (machine.location) { %> · <%= machine.location %><% } %></p>
+    </header>
+
+    <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+    <form action="/r/<%= machine.public_token %>/issue" method="post" class="public-form">
+      <label class="big-field">
+        <span class="label">What's wrong?</span>
+        <select name="issue" required>
+          <option value="" disabled <%= !form.issue ? 'selected' : '' %>>Select an issue...</option>
+          <option value="Machine is jammed" <%= form.issue === 'Machine is jammed' ? 'selected' : '' %>>Machine is jammed</option>
+          <option value="Not accepting payment" <%= form.issue === 'Not accepting payment' ? 'selected' : '' %>>Not accepting payment</option>
+          <option value="Product expired or stale" <%= form.issue === 'Product expired or stale' ? 'selected' : '' %>>Product expired or stale</option>
+          <option value="Machine is out of order" <%= form.issue === 'Machine is out of order' ? 'selected' : '' %>>Machine is out of order</option>
+          <option value="Took my money but didn't vend" <%= form.issue === "Took my money but didn't vend" ? 'selected' : '' %>>Took my money but didn't vend</option>
+          <option value="Other" <%= form.issue === 'Other' ? 'selected' : '' %>>Other</option>
+        </select>
+      </label>
+
+      <label class="big-field">
+        <span class="label">Your phone</span>
+        <input type="tel" name="phone" required maxlength="40"
+               value="<%= form.phone || '' %>"
+               inputmode="tel"
+               autocomplete="tel"
+               placeholder="555-123-4567">
+        <small>So the operator can follow up if needed.</small>
+      </label>
+
+      <!-- honeypot -->
+      <div class="hp" aria-hidden="true">
+        <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      </div>
+
+      <button type="submit" class="btn btn-dark btn-xl btn-block">Report issue</button>
+    </form>
+    <p class="muted tiny center" style="margin-top:16px;">
+      <a href="/r/<%= machine.public_token %>">← Back to product request</a>
+    </p>
+  </main>
+</body>
+</html>

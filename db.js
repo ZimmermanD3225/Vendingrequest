@@ -67,6 +67,7 @@ async function initSchema() {
       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_requests_machine ON requests(machine_id, status, created_at DESC);
+    ALTER TABLE requests ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'request';
   `);
 }
 
@@ -197,17 +198,17 @@ const q = {
   },
 
   // --- requests ---
-  async insertRequest({ machine_id, product_name, phone, notes }) {
+  async insertRequest({ machine_id, product_name, phone, notes, type = 'request' }) {
     await pool.query(
-      `INSERT INTO requests (machine_id, product_name, phone, notes)
-       VALUES ($1, $2, $3, $4)`,
-      [machine_id, product_name, phone, notes]
+      `INSERT INTO requests (machine_id, product_name, phone, notes, type)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [machine_id, product_name, phone, notes, type]
     );
   },
-  async listRequestsForMachine(machine_id, status) {
+  async listRequestsForMachine(machine_id, status, type = 'request') {
     const { rows } = await pool.query(
-      `SELECT * FROM requests WHERE machine_id = $1 AND status = $2 ORDER BY created_at DESC`,
-      [machine_id, status]
+      `SELECT * FROM requests WHERE machine_id = $1 AND status = $2 AND type = $3 ORDER BY created_at DESC`,
+      [machine_id, status, type]
     );
     return rows;
   },
