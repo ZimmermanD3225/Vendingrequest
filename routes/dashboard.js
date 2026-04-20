@@ -155,7 +155,9 @@ router.get('/machines/:id', requireAuth, async (req, res, next) => {
     const status = ['new', 'addressed', 'dismissed'].includes(req.query.status)
       ? req.query.status
       : 'new';
-    const requests = await q.listRequestsForMachine(machine.id, status, type);
+    // New tab: show only requests. Issues tab: show only issues. Addressed/Dismissed: show both.
+    const filterType = status === 'new' ? type : null;
+    const requests = await q.listRequestsForMachine(machine.id, status, filterType);
 
     const publicUrl = publicUrlFor(machine.public_token);
     res.render('machine-show', {
@@ -244,8 +246,7 @@ router.post('/requests/:id/status', requireAuth, async (req, res, next) => {
       new: 'Request reopened.',
     }[nextStatus];
     setFlash(req, 'success', msg);
-    const rType = request.type === 'issue' ? '&type=issue' : '';
-    res.redirect(`/machines/${request.machine_id}?status=${nextStatus}${rType}`);
+    res.redirect(`/machines/${request.machine_id}?status=${nextStatus}`);
   } catch (err) {
     next(err);
   }

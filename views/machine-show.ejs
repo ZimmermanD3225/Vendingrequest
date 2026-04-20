@@ -38,17 +38,10 @@
 
   <section class="requests">
     <nav class="tabs">
-      <% if (type === 'issue') { %>
-        <a href="?status=new">Requests</a>
-        <a class="<%= status === 'new' ? 'active' : '' %>" href="?type=issue&status=new" style="color:var(--danger);">New Issues</a>
-        <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?type=issue&status=addressed" style="color:var(--danger);">Addressed</a>
-        <a class="<%= status === 'dismissed' ? 'active' : '' %>" href="?type=issue&status=dismissed" style="color:var(--danger);">Dismissed</a>
-      <% } else { %>
-        <a class="<%= status === 'new' ? 'active' : '' %>" href="?status=new">New</a>
-        <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
-        <a class="<%= status === 'dismissed' ? 'active' : '' %>" href="?status=dismissed">Dismissed</a>
-        <a href="?type=issue" style="color:var(--danger);">Issues</a>
-      <% } %>
+      <a class="<%= status === 'new' && type !== 'issue' ? 'active' : '' %>" href="?status=new">New</a>
+      <a class="<%= type === 'issue' ? 'active' : '' %>" href="?type=issue" style="color:var(--danger);">Issues</a>
+      <a class="<%= status === 'addressed' && type !== 'issue' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
+      <a class="<%= status === 'dismissed' && type !== 'issue' ? 'active' : '' %>" href="?status=dismissed">Dismissed</a>
     </nav>
 
     <% if (requests.length === 0) { %>
@@ -60,7 +53,7 @@
         <% requests.forEach((r) => { %>
           <li class="req">
             <div class="req-main">
-              <h3><%= r.product_name %></h3>
+              <h3><% if (r.type === 'issue') { %><span style="color:var(--danger);">[Issue]</span> <% } %><%= r.product_name %></h3>
               <p class="req-meta">
                 <a href="tel:<%= r.phone.replace(/[^0-9+]/g, '') %>" class="phone"><%= r.phone %></a>
                 <span class="sep">·</span>

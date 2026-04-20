@@ -205,10 +205,17 @@ const q = {
       [machine_id, product_name, phone, notes, type]
     );
   },
-  async listRequestsForMachine(machine_id, status, type = 'request') {
+  async listRequestsForMachine(machine_id, status, type = null) {
+    if (type) {
+      const { rows } = await pool.query(
+        `SELECT * FROM requests WHERE machine_id = $1 AND status = $2 AND type = $3 ORDER BY created_at DESC`,
+        [machine_id, status, type]
+      );
+      return rows;
+    }
     const { rows } = await pool.query(
-      `SELECT * FROM requests WHERE machine_id = $1 AND status = $2 AND type = $3 ORDER BY created_at DESC`,
-      [machine_id, status, type]
+      `SELECT * FROM requests WHERE machine_id = $1 AND status = $2 ORDER BY created_at DESC`,
+      [machine_id, status]
     );
     return rows;
   },
