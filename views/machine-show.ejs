@@ -25,6 +25,8 @@
       <a class="btn btn-ghost btn-block" href="/machines/<%= machine.id %>/qr.png?v=<%= qrVersion %>" download="machine-<%= machine.id %>-qr.png">Download PNG</a>
     </div>
 
+    <a class="btn btn-ghost btn-block" href="/machines/<%= machine.id %>/restocks">Log restock</a>
+
     <details class="danger-zone">
       <summary>Delete machine</summary>
       <p class="muted tiny">Removes the QR link and all requests. Permanent.</p>
@@ -67,6 +69,12 @@
                   <input type="hidden" name="status" value="addressed">
                   <button class="btn btn-sm btn-dark" type="submit">Addressed</button>
                 </form>
+              <% } %>
+              <% if (status === 'addressed' && r.type !== 'issue') { %>
+                <a class="btn btn-sm btn-ghost"
+                   href="sms:<%= r.phone.replace(/[^0-9+]/g, '') %>&body=<%= encodeURIComponent('Hey! We just stocked ' + r.product_name + ' at ' + machine.name + '. Thanks for letting us know!') %>">
+                  Text customer
+                </a>
               <% } %>
               <% if (status !== 'dismissed') { %>
                 <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">

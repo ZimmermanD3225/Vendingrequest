@@ -254,4 +254,148 @@ router.post('/requests/:id/status', requireAuth, async (req, res, next) => {
   }
 });
 
+// -------------------- Restocks --------------------
+
+router.get('/machines/:id/restocks', requireAuth, async (req, res, next) => {
+  try {
+    const machine = await q.getMachineForOperator(req.params.id, req.session.operatorId);
+    if (!machine) {
+      return res.status(404).render('error', { title: 'Not found', message: 'Machine not found.', stack: null });
+    }
+    const restocks = await q.listRestocksForMachine(machine.id);
+    res.render('machine-restocks', { title: `Restock — ${machine.name}`, machine, restocks, error: null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/machines/:id/restocks', requireAuth, async (req, res, next) => {
+  try {
+    const machine = await q.getMachineForOperator(req.params.id, req.session.operatorId);
+    if (!machine) {
+      return res.status(404).render('error', { title: 'Not found', message: 'Machine not found.', stack: null });
+    }
+
+    const names = [].concat(req.body['item_name'] || []);
+    const qtys = [].concat(req.body['item_qty'] || []);
+    const items = [];
+    for (let i = 0; i < names.length; i++) {
+      const name = String(names[i] || '').trim();
+      const qty = parseInt(qtys[i], 10) || 0;
+      if (name && qty > 0) items.push({ name, qty });
+    }
+
+    if (items.length === 0) {
+      const restocks = await q.listRestocksForMachine(machine.id);
+      return res.status(400).render('machine-restocks', {
+        title: `Restock — ${machine.name}`, machine, restocks,
+        error: 'Add at least one item with a quantity.',
+      });
+    }
+
+    const notes = String(req.body.notes || '').trim().slice(0, 500) || null;
+    await q.insertRestock({ machine_id: machine.id, operator_id: req.session.operatorId, items, notes });
+    try { await q.logEvent(req.session.operatorId, 'restock', machine.name); } catch (_) {}
+
+    setFlash(req, 'success', `Logged ${items.length} item(s) restocked at ${machine.name}.`);
+    res.redirect(`/machines/${machine.id}/restocks`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -------------------- Suppliers --------------------
+
+router.get('/suppliers', requireAuth, async (req, res, next) => {
+  try {
+    const suppliers = await q.listSuppliersForOperator(req.session.operatorId);
+    res.render('suppliers', { title: 'Suppliers', suppliers });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/suppliers/new', requireAuth, (req, res) => {
+  res.render('supplier-form', { title: 'Add supplier', supplier: {}, error: null });
+});
+
+router.post('/suppliers', requireAuth, async (req, res, next) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 120);
+    if (!name) {
+      return res.status(400).render('supplier-form', {
+        title: 'Add supplier', supplier: req.body, error: 'Supplier name is required.',
+      });
+    }
+    await q.insertSupplier({
+      operator_id: req.session.operatorId,
+      name,
+      contact: String(req.body.contact || '').trim().slice(0, 120),
+      phone: String(req.body.phone || '').trim().slice(0, 40),
+      email: String(req.body.email || '').trim().slice(0, 160),
+      notes: String(req.body.notes || '').trim().slice(0, 500),
+    });
+    setFlash(req, 'success', `Supplier "${name}" added.`);
+    res.redirect('/suppliers');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/suppliers/:id/delete', requireAuth, async (req, res, next) => {
+  try {
+    await q.deleteSupplierForOperator(req.params.id, req.session.operatorId);
+    setFlash(req, 'success', 'Supplier deleted.');
+    res.redirect('/suppliers');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -------------------- Reorder --------------------
+
+router.get('/reorder', requireAuth, async (req, res, next) => {
+  try {
+    const reorderData = await q.getReorderData(req.session.operatorId);
+    const supplierMap = await q.getProductSupplierMap(req.session.operatorId);
+    const suppliers = await q.listSuppliersForOperator(req.session.operatorId);
+
+    // Build a lookup: product_name -> { supplier_id, supplier_name }
+    const productToSupplier = {};
+    for (const row of supplierMap) {
+      productToSupplier[row.product_name] = { id: row.supplier_id, name: row.supplier_name };
+    }
+
+    // Group reorder items by supplier
+    const groups = {};
+    for (const item of reorderData) {
+      const sup = productToSupplier[item.product_name];
+      const key = sup ? sup.name : 'Unassigned';
+      if (!groups[key]) groups[key] = { supplier: sup || null, items: [] };
+      groups[key].items.push(item);
+    }
+
+    res.render('reorder', { title: 'Reorder', groups, suppliers, productToSupplier });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/reorder/link', requireAuth, async (req, res, next) => {
+  try {
+    const product_name = String(req.body.product_name || '').trim();
+    const supplier_id = parseInt(req.body.supplier_id, 10);
+    if (product_name && supplier_id) {
+      await q.linkProductToSupplier({
+        operator_id: req.session.operatorId,
+        product_name,
+        supplier_id,
+      });
+    }
+    res.redirect('/reorder');
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

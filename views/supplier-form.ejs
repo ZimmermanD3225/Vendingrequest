@@ -1,0 +1,40 @@
+<%- include('_header') %>
+
+<div class="auth" style="max-width:480px;">
+  <h1><%= title %></h1>
+
+  <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+  <form action="/suppliers" method="post" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Supplier name
+      <input type="text" name="name" required maxlength="120"
+             value="<%= supplier.name || '' %>" autofocus>
+    </label>
+
+    <label>Contact person <span class="muted">(optional)</span>
+      <input type="text" name="contact" maxlength="120"
+             value="<%= supplier.contact || '' %>">
+    </label>
+
+    <label>Phone <span class="muted">(optional)</span>
+      <input type="tel" name="phone" maxlength="40"
+             value="<%= supplier.phone || '' %>">
+    </label>
+
+    <label>Email <span class="muted">(optional)</span>
+      <input type="email" name="email" maxlength="160"
+             value="<%= supplier.email || '' %>">
+    </label>
+
+    <label>Notes <span class="muted">(optional)</span>
+      <textarea name="notes" rows="2" maxlength="500"><%= supplier.notes || '' %></textarea>
+    </label>
+
+    <button type="submit" class="btn btn-dark btn-lg btn-block">Save supplier</button>
+  </form>
+  <p class="muted center"><a href="/suppliers">← Back to suppliers</a></p>
+</div>
+
+<%- include('_footer') %>

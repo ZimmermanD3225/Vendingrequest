@@ -1,0 +1,43 @@
+<%- include('_header') %>
+
+<div class="page-head">
+  <div>
+    <h1>Suppliers</h1>
+    <p class="muted"><%= suppliers.length %> total</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-dark" href="/suppliers/new">+ Add supplier</a>
+  </div>
+</div>
+
+<% if (suppliers.length === 0) { %>
+  <div class="empty">
+    <p class="muted">No suppliers yet. Add one to start linking products for easy reordering.</p>
+    <a class="btn btn-dark" href="/suppliers/new">Add your first supplier</a>
+  </div>
+<% } else { %>
+  <ul class="req-list">
+    <% suppliers.forEach((s) => { %>
+      <li class="req">
+        <div class="req-main">
+          <h3><%= s.name %></h3>
+          <p class="req-meta">
+            <% if (s.contact) { %><span class="muted small"><%= s.contact %></span><span class="sep">·</span><% } %>
+            <% if (s.phone) { %><a href="tel:<%= s.phone %>" class="phone"><%= s.phone %></a><span class="sep">·</span><% } %>
+            <% if (s.email) { %><span class="muted small"><%= s.email %></span><% } %>
+          </p>
+          <% if (s.notes) { %><p class="muted small"><%= s.notes %></p><% } %>
+        </div>
+        <div class="req-actions">
+          <form action="/suppliers/<%= s.id %>/delete" method="post" class="inline-form"
+                data-confirm="Delete this supplier?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-sm btn-ghost" type="submit" style="color:var(--danger);">Delete</button>
+          </form>
+        </div>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>
+
+<%- include('_footer') %>

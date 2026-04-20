@@ -1,0 +1,60 @@
+<%- include('_header') %>
+
+<div class="page-head">
+  <div>
+    <p class="muted small"><a href="/machines/<%= machine.id %>">← <%= machine.name %></a></p>
+    <h1>Log restock</h1>
+  </div>
+</div>
+
+<div class="twocol">
+  <section style="max-width:520px;">
+    <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+    <form action="/machines/<%= machine.id %>/restocks" method="post" class="stack" id="restock-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div id="restock-items">
+        <div class="restock-row">
+          <input type="text" name="item_name" placeholder="Product name" required autocomplete="off">
+          <input type="number" name="item_qty" placeholder="Qty" min="1" required style="width:80px;">
+          <button type="button" class="btn btn-sm btn-ghost restock-remove" style="display:none;">&times;</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-sm" id="add-restock-row">+ Add item</button>
+
+      <label>Notes <span class="muted">(optional)</span>
+        <textarea name="notes" rows="2" maxlength="500" placeholder="Any notes about this visit..."></textarea>
+      </label>
+
+      <button type="submit" class="btn btn-dark btn-lg btn-block">Save restock</button>
+    </form>
+  </section>
+
+  <section class="requests">
+    <h2>Restock history</h2>
+    <% if (restocks.length === 0) { %>
+      <div class="empty mini"><p class="muted">No restocks logged yet.</p></div>
+    <% } else { %>
+      <ul class="req-list">
+        <% restocks.forEach((r) => { %>
+          <li class="req">
+            <div class="req-main">
+              <h3>
+                <% const items = Array.isArray(r.items) ? r.items : JSON.parse(r.items || '[]'); %>
+                <%= items.map(i => i.qty + 'x ' + i.name).join(', ') %>
+              </h3>
+              <p class="req-meta">
+                <time class="muted small"><%= new Date(r.created_at).toLocaleString() %></time>
+                <% if (r.notes) { %><span class="sep">·</span><span class="muted small"><%= r.notes %></span><% } %>
+              </p>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </section>
+</div>
+
+<%- include('_footer') %>

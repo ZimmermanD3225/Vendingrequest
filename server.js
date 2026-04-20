@@ -38,7 +38,7 @@ app.use(
     },
   })
 );
-app.use(express.urlencoded({ extended: false, limit: '32kb' }));
+app.use(express.urlencoded({ extended: true, limit: '32kb' }));
 app.use('/vendor/leaflet', express.static(path.join(__dirname, 'node_modules/leaflet/dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 

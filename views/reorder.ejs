@@ -1,0 +1,85 @@
+<%- include('_header') %>
+
+<div class="page-head">
+  <div>
+    <h1>Reorder</h1>
+    <p class="muted">Products requested across your fleet, grouped by supplier</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/suppliers">Manage suppliers</a>
+  </div>
+</div>
+
+<% const groupNames = Object.keys(groups); %>
+<% if (groupNames.length === 0) { %>
+  <div class="empty">
+    <p class="muted">No pending product requests across your machines.</p>
+  </div>
+<% } else { %>
+  <% groupNames.forEach((groupName) => { %>
+    <% const group = groups[groupName]; %>
+    <div class="reorder-group">
+      <div class="reorder-group-header">
+        <h2><%= groupName %></h2>
+        <% if (group.supplier) { %>
+          <p class="muted small">
+            <% if (group.supplier.phone) { %><a href="tel:<%= group.supplier.phone %>"><%= group.supplier.phone %></a> · <% } %>
+            <% if (group.supplier.email) { %><%= group.supplier.email %><% } %>
+          </p>
+        <% } %>
+      </div>
+      <ul class="req-list">
+        <% group.items.forEach((item) => { %>
+          <li class="req">
+            <div class="req-main">
+              <h3><%= item.product_name %> <span class="badge"><%= item.request_count %> request<%= item.request_count > 1 ? 's' : '' %></span></h3>
+              <p class="muted small"><%= item.machine_names.join(', ') %></p>
+            </div>
+            <div class="req-actions">
+              <% if (groupName === 'Unassigned' && suppliers.length > 0) { %>
+                <form action="/reorder/link" method="post" class="inline-form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="product_name" value="<%= item.product_name %>">
+                  <select name="supplier_id" onchange="this.form.submit()" class="select-sm">
+                    <option value="">Assign supplier...</option>
+                    <% suppliers.forEach((s) => { %>
+                      <option value="<%= s.id %>"><%= s.name %></option>
+                    <% }) %>
+                  </select>
+                </form>
+              <% } %>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  <% }) %>
+
+  <div class="reorder-copy" style="margin-top:24px;">
+    <button type="button" class="btn btn-dark" id="copy-order-btn">Copy order list to clipboard</button>
+  </div>
+<% } %>
+
+<script>
+(function() {
+  var btn = document.getElementById('copy-order-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function() {
+    var groups = document.querySelectorAll('.reorder-group');
+    var text = 'Reorder List\n\n';
+    groups.forEach(function(g) {
+      var header = g.querySelector('h2');
+      text += header.textContent + ':\n';
+      var items = g.querySelectorAll('.req h3');
+      items.forEach(function(h) { text += '  - ' + h.textContent.trim() + '\n'; });
+      text += '\n';
+    });
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy order list to clipboard'; }, 2000);
+    });
+  });
+})();
+</script>
+
+<%- include('_footer') %>

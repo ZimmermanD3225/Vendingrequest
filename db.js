@@ -77,6 +77,37 @@ async function initSchema() {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_events_action ON events(action, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS restocks (
+      id          SERIAL PRIMARY KEY,
+      machine_id  INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+      operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+      items       JSONB NOT NULL DEFAULT '[]',
+      notes       TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_restocks_machine ON restocks(machine_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id          SERIAL PRIMARY KEY,
+      operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      contact     TEXT,
+      phone       TEXT,
+      email       TEXT,
+      notes       TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_suppliers_operator ON suppliers(operator_id);
+
+    CREATE TABLE IF NOT EXISTS product_suppliers (
+      id            SERIAL PRIMARY KEY,
+      operator_id   INTEGER NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+      product_name  TEXT NOT NULL,
+      supplier_id   INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      UNIQUE(operator_id, product_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_product_suppliers_operator ON product_suppliers(operator_id);
   `);
 }
 
@@ -167,6 +198,85 @@ const q = {
       `INSERT INTO events (operator_id, action, detail) VALUES ($1, $2, $3)`,
       [operator_id, action, detail]
     );
+  },
+
+  // --- restocks ---
+  async insertRestock({ machine_id, operator_id, items, notes }) {
+    const { rows } = await pool.query(
+      `INSERT INTO restocks (machine_id, operator_id, items, notes)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [machine_id, operator_id, JSON.stringify(items), notes || null]
+    );
+    return rows[0];
+  },
+  async listRestocksForMachine(machine_id, limit = 20) {
+    const { rows } = await pool.query(
+      `SELECT * FROM restocks WHERE machine_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [machine_id, limit]
+    );
+    return rows;
+  },
+
+  // --- suppliers ---
+  async insertSupplier({ operator_id, name, contact, phone, email, notes }) {
+    const { rows } = await pool.query(
+      `INSERT INTO suppliers (operator_id, name, contact, phone, email, notes)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [operator_id, name, contact || null, phone || null, email || null, notes || null]
+    );
+    return rows[0];
+  },
+  async listSuppliersForOperator(operator_id) {
+    const { rows } = await pool.query(
+      `SELECT * FROM suppliers WHERE operator_id = $1 ORDER BY name`, [operator_id]
+    );
+    return rows;
+  },
+  async getSupplierForOperator(id, operator_id) {
+    const { rows } = await pool.query(
+      `SELECT * FROM suppliers WHERE id = $1 AND operator_id = $2`, [id, operator_id]
+    );
+    return rows[0];
+  },
+  async deleteSupplierForOperator(id, operator_id) {
+    await pool.query(`DELETE FROM suppliers WHERE id = $1 AND operator_id = $2`, [id, operator_id]);
+  },
+
+  // --- product-supplier linking ---
+  async linkProductToSupplier({ operator_id, product_name, supplier_id }) {
+    await pool.query(
+      `INSERT INTO product_suppliers (operator_id, product_name, supplier_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (operator_id, product_name)
+       DO UPDATE SET supplier_id = EXCLUDED.supplier_id`,
+      [operator_id, product_name, supplier_id]
+    );
+  },
+  async getProductSupplierMap(operator_id) {
+    const { rows } = await pool.query(
+      `SELECT ps.product_name, ps.supplier_id, s.name AS supplier_name
+       FROM product_suppliers ps
+       JOIN suppliers s ON s.id = ps.supplier_id
+       WHERE ps.operator_id = $1`,
+      [operator_id]
+    );
+    return rows;
+  },
+
+  // --- reorder aggregation ---
+  async getReorderData(operator_id) {
+    const { rows } = await pool.query(
+      `SELECT r.product_name,
+              COUNT(*)::int AS request_count,
+              array_agg(DISTINCT m.name) AS machine_names
+       FROM requests r
+       JOIN machines m ON m.id = r.machine_id
+       WHERE m.operator_id = $1 AND r.status = 'new' AND r.type = 'request'
+       GROUP BY r.product_name
+       ORDER BY request_count DESC`,
+      [operator_id]
+    );
+    return rows;
   },
 
   // --- machines ---

@@ -9,6 +9,7 @@
     initScrollReveal();
     initThemeToggle();
     initUserMenu();
+    initRestockForm();
   });
 
   function initPrintButton() {
@@ -68,6 +69,38 @@
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('theme', next); } catch (_) { /* private-mode etc. */ }
     });
+  }
+
+  function initRestockForm() {
+    var addBtn = document.getElementById('add-restock-row');
+    var container = document.getElementById('restock-items');
+    if (!addBtn || !container) return;
+
+    addBtn.addEventListener('click', function () {
+      var row = document.createElement('div');
+      row.className = 'restock-row';
+      row.innerHTML = '<input type="text" name="item_name" placeholder="Product name" required autocomplete="off">'
+        + '<input type="number" name="item_qty" placeholder="Qty" min="1" required style="width:80px;">'
+        + '<button type="button" class="btn btn-sm btn-ghost restock-remove">&times;</button>';
+      container.appendChild(row);
+      row.querySelector('input').focus();
+      updateRemoveButtons();
+    });
+
+    container.addEventListener('click', function (e) {
+      if (e.target.classList.contains('restock-remove')) {
+        e.target.closest('.restock-row').remove();
+        updateRemoveButtons();
+      }
+    });
+
+    function updateRemoveButtons() {
+      var rows = container.querySelectorAll('.restock-row');
+      rows.forEach(function (row, i) {
+        var btn = row.querySelector('.restock-remove');
+        if (btn) btn.style.display = rows.length > 1 ? '' : 'none';
+      });
+    }
   }
 
   function initUserMenu() {
