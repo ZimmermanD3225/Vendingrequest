@@ -494,7 +494,7 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
   }
 
   try {
-    // Search Walmart for each product in parallel
+    // Search Walmart for each product in parallel (if API key available)
     const searchResults = await Promise.all(
       products.slice(0, 20).map(async (name) => {
         try {
@@ -506,14 +506,25 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
       })
     );
 
+    const hasWalmartResults = searchResults.some((s) => s.results.length > 0);
+
     // Build context for Claude
-    const productData = searchResults.map((s) => {
-      if (s.results.length === 0) return `${s.product}: No results found.`;
-      const listings = s.results
-        .map((r) => `  - ${r.name} | $${r.salePrice || r.msrp || '?'} | ${r.size || 'N/A'}`)
-        .join('\n');
-      return `${s.product}:\n${listings}`;
-    }).join('\n\n');
+    let productData;
+    let promptIntro;
+
+    if (hasWalmartResults) {
+      productData = searchResults.map((s) => {
+        if (s.results.length === 0) return `${s.product}: No store results found.`;
+        const listings = s.results
+          .map((r) => `  - ${r.name} | $${r.price || '?'} | ${r.size || 'N/A'}`)
+          .join('\n');
+        return `${s.product}:\n${listings}`;
+      }).join('\n\n');
+      promptIntro = `You are a vending machine purchasing assistant. Analyze these product search results and recommend the best value option for each product for a vending machine operator buying in bulk.\n\nFor each product, pick the BEST option considering: price per unit, bulk value, and suitability for vending machines. Be concise.`;
+    } else {
+      productData = products.map((p) => `- ${p}`).join('\n');
+      promptIntro = `You are a vending machine purchasing assistant. A vending operator needs to restock these products. No store API results are available, so use your knowledge of typical US retail/wholesale prices (Walmart, Sam's Club, Costco, Amazon) to estimate the best bulk price for each product.\n\nFor each product, recommend the best bulk buying option with estimated price. Focus on vending-machine-sized portions (single serve, cans, small bags, etc). Be concise and realistic with prices.`;
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -524,28 +535,27 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
+        max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: `You are a vending machine purchasing assistant. Analyze these product search results and recommend the best value option for each product for a vending machine operator buying in bulk.
+          content: `${promptIntro}
 
-For each product, pick the BEST option considering: price per unit, bulk value, and suitability for vending machines. Be concise.
-
+Products:
 ${productData}
 
-Respond in this exact JSON format (no markdown, just raw JSON):
+Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
 {
   "recommendations": [
     {
-      "product": "original search term",
-      "best_option": "product name from results",
+      "product": "original product name",
+      "best_option": "specific product name and size (e.g. 'Coca-Cola 12oz 24-pack')",
       "price": 12.99,
-      "reason": "one short sentence why this is the best pick",
+      "reason": "one short sentence why this is the best pick for vending",
       "per_unit": "$0.54/ea"
     }
   ],
   "total_estimated": 45.99,
-  "tip": "one sentence bulk buying tip"
+  "tip": "one sentence bulk buying tip for vending operators"
 }`
         }],
       }),
