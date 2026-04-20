@@ -6,7 +6,6 @@ const { setFlash } = require('../middleware/flash');
 const { generatePublicToken } = require('../lib/tokens');
 const { qrPngBuffer } = require('../lib/qr');
 const { forwardGeocode, reverseGeocode, searchSuggestions } = require('../lib/geocode');
-const mealme = require('../lib/mealme');
 
 const router = express.Router();
 
@@ -376,21 +375,9 @@ router.get('/reorder', requireAuth, async (req, res, next) => {
       groups[key].items.push(item);
     }
 
-    res.render('reorder', { title: 'Reorder', groups, suppliers, productToSupplier, mealmeEnabled: mealme.enabled() });
+    res.render('reorder', { title: 'Reorder', groups, suppliers, productToSupplier });
   } catch (err) {
     next(err);
-  }
-});
-
-router.get('/api/prices', requireAuth, async (req, res) => {
-  const query = String(req.query.q || '').trim();
-  if (!query || !mealme.enabled()) return res.json({ ok: false, results: [] });
-  try {
-    const results = await mealme.searchProducts(query);
-    res.json({ ok: true, results });
-  } catch (err) {
-    console.error('[prices]', err);
-    res.json({ ok: false, results: [] });
   }
 });
 
