@@ -480,6 +480,97 @@ router.get('/prices', apiAuth, async (req, res) => {
   }
 });
 
+// ==================== AI Price Analysis ====================
+
+router.post('/prices/analyze', apiAuth, async (req, res) => {
+  const products = req.body.products;
+  if (!Array.isArray(products) || products.length === 0) {
+    return res.json({ ok: false, error: 'products array is required.' });
+  }
+
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) {
+    return res.json({ ok: false, error: 'AI analysis not configured.' });
+  }
+
+  try {
+    // Search Walmart for each product in parallel
+    const searchResults = await Promise.all(
+      products.slice(0, 20).map(async (name) => {
+        try {
+          const results = await walmart.searchProducts(name);
+          return { product: name, results: results.slice(0, 5) };
+        } catch {
+          return { product: name, results: [] };
+        }
+      })
+    );
+
+    // Build context for Claude
+    const productData = searchResults.map((s) => {
+      if (s.results.length === 0) return `${s.product}: No results found.`;
+      const listings = s.results
+        .map((r) => `  - ${r.name} | $${r.salePrice || r.msrp || '?'} | ${r.size || 'N/A'}`)
+        .join('\n');
+      return `${s.product}:\n${listings}`;
+    }).join('\n\n');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `You are a vending machine purchasing assistant. Analyze these product search results and recommend the best value option for each product for a vending machine operator buying in bulk.
+
+For each product, pick the BEST option considering: price per unit, bulk value, and suitability for vending machines. Be concise.
+
+${productData}
+
+Respond in this exact JSON format (no markdown, just raw JSON):
+{
+  "recommendations": [
+    {
+      "product": "original search term",
+      "best_option": "product name from results",
+      "price": 12.99,
+      "reason": "one short sentence why this is the best pick",
+      "per_unit": "$0.54/ea"
+    }
+  ],
+  "total_estimated": 45.99,
+  "tip": "one sentence bulk buying tip"
+}`
+        }],
+      }),
+    });
+
+    const aiData = await response.json();
+    const text = aiData.content?.[0]?.text || '{}';
+
+    // Parse the JSON from Claude's response
+    let analysis;
+    try {
+      // Extract JSON if wrapped in code blocks
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch {
+      analysis = { recommendations: [], total_estimated: 0, tip: '' };
+    }
+
+    res.json({ ok: true, analysis, raw: searchResults });
+  } catch (err) {
+    console.error('[api/prices/analyze]', err);
+    res.json({ ok: false, error: 'AI analysis failed.' });
+  }
+});
+
 // ==================== Geocode ====================
 
 router.get('/geocode', apiAuth, async (req, res) => {
