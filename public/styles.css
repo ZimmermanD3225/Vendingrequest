@@ -807,8 +807,12 @@ form textarea { resize: vertical; }
 .print-controls { margin-top: 28px; display: flex; gap: 10px; }
 @media print {
   .print-controls, .topbar { display: none !important; }
-  .poster { border: none; }
-  body { background: #fff; }
+  .poster { border: none; padding: 0; }
+  .print { min-height: auto; padding: 0; margin: 0; }
+  body { background: #fff; margin: 0; }
+  .poster-qr { max-width: 280px; }
+  .poster-title { font-size: 1.6rem; margin-bottom: 16px; }
+  .poster-machine { margin: 16px 0 4px; }
 }
 
 /* =========================================================================
