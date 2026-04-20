@@ -6,6 +6,7 @@ const { setFlash } = require('../middleware/flash');
 const { generatePublicToken } = require('../lib/tokens');
 const { qrPngBuffer } = require('../lib/qr');
 const { forwardGeocode, reverseGeocode, searchSuggestions } = require('../lib/geocode');
+const walmart = require('../lib/walmart');
 
 const router = express.Router();
 
@@ -375,9 +376,21 @@ router.get('/reorder', requireAuth, async (req, res, next) => {
       groups[key].items.push(item);
     }
 
-    res.render('reorder', { title: 'Reorder', groups, suppliers, productToSupplier });
+    res.render('reorder', { title: 'Reorder', groups, suppliers, productToSupplier, pricesEnabled: walmart.enabled() });
   } catch (err) {
     next(err);
+  }
+});
+
+router.get('/api/prices', requireAuth, async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (!query) return res.json({ ok: false, results: [] });
+  try {
+    const results = await walmart.searchProducts(query);
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.error('[prices]', err);
+    res.json({ ok: false, results: [] });
   }
 });
 

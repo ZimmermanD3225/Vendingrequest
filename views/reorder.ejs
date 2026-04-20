@@ -34,8 +34,15 @@
             <div class="req-main">
               <h3><%= item.product_name %> <span class="badge"><%= item.request_count %> request<%= item.request_count > 1 ? 's' : '' %></span></h3>
               <p class="muted small"><%= item.machine_names.join(', ') %></p>
+              <% if (pricesEnabled) { %>
+                <div class="price-results" id="prices-<%= item.product_name.replace(/[^a-zA-Z0-9]/g, '_') %>"></div>
+              <% } %>
               <div class="shop-links">
                 <% const q = encodeURIComponent(item.product_name + ' bulk'); %>
+                <% if (pricesEnabled) { %>
+                  <button type="button" class="shop-link shop-link-active find-prices-btn"
+                          data-product="<%= item.product_name %>">Find prices</button>
+                <% } %>
                 <a href="https://www.walmart.com/search?q=<%= q %>" target="_blank" class="shop-link">Walmart</a>
                 <a href="https://www.samsclub.com/s/<%= q %>" target="_blank" class="shop-link">Sam's Club</a>
                 <a href="https://www.costco.com/CatalogSearch?keyword=<%= q %>" target="_blank" class="shop-link">Costco</a>
@@ -70,6 +77,54 @@
 
 <script>
 (function() {
+  // Find prices
+  document.querySelectorAll('.find-prices-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var product = btn.getAttribute('data-product');
+      var containerId = 'prices-' + product.replace(/[^a-zA-Z0-9]/g, '_');
+      var container = document.getElementById(containerId);
+      if (!container) return;
+
+      btn.textContent = 'Searching...';
+      btn.disabled = true;
+
+      fetch('/api/prices?q=' + encodeURIComponent(product))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.ok || !data.results.length) {
+            container.innerHTML = '<p class="muted small" style="margin-top:8px;">No prices found.</p>';
+            btn.textContent = 'Find prices';
+            btn.disabled = false;
+            return;
+          }
+          var html = '<div class="price-cards">';
+          data.results.forEach(function(r) {
+            var priceText = r.price ? '$' + Number(r.price).toFixed(2) : 'See store';
+            html += '<div class="price-card">';
+            if (r.image) html += '<img src="' + r.image + '" alt="" class="price-card-img">';
+            html += '<div class="price-card-info">';
+            html += '<div class="price-card-name">' + r.name + '</div>';
+            html += '<div class="price-card-store">' + r.store;
+            if (r.size) html += ' · ' + r.size;
+            html += '</div></div>';
+            html += '<div class="price-card-price">' + priceText + '</div>';
+            if (r.url) html += '<a href="' + r.url + '" target="_blank" class="btn btn-sm btn-dark">Buy</a>';
+            html += '</div>';
+          });
+          html += '</div>';
+          container.innerHTML = html;
+          btn.textContent = 'Refresh';
+          btn.disabled = false;
+        })
+        .catch(function() {
+          container.innerHTML = '<p class="muted small" style="margin-top:8px;">Price lookup failed.</p>';
+          btn.textContent = 'Find prices';
+          btn.disabled = false;
+        });
+    });
+  });
+
+  // Copy order list
   var btn = document.getElementById('copy-order-btn');
   if (!btn) return;
   btn.addEventListener('click', function() {
