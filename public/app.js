@@ -8,6 +8,7 @@
     initToast();
     initScrollReveal();
     initThemeToggle();
+    initUserMenu();
   });
 
   function initPrintButton() {
@@ -66,6 +67,23 @@
       var next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('theme', next); } catch (_) { /* private-mode etc. */ }
+    });
+  }
+
+  function initUserMenu() {
+    var toggle = document.getElementById('user-menu-toggle');
+    var menu = toggle && toggle.closest('.user-menu');
+    if (!toggle || !menu) return;
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = menu.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (e) {
+      if (!menu.contains(e.target)) {
+        menu.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 

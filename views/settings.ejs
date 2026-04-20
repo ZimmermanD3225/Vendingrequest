@@ -1,0 +1,54 @@
+<%- include('_header') %>
+
+<div class="auth" style="max-width:480px;">
+  <h1>Settings</h1>
+
+  <% if (error) { %><div class="alert"><%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+  <h2 class="settings-section">Profile</h2>
+  <form action="/settings/profile" method="post" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Username
+      <input type="text" value="<%= op.username %>" disabled>
+      <small>Username cannot be changed.</small>
+    </label>
+
+    <label>Business name
+      <input type="text" name="business_name" maxlength="120"
+             value="<%= op.business_name || '' %>">
+    </label>
+
+    <label>Email
+      <input type="email" name="email" required maxlength="160"
+             value="<%= op.email || '' %>" autocomplete="email">
+    </label>
+
+    <button type="submit" class="btn btn-dark btn-block">Save profile</button>
+  </form>
+
+  <hr class="settings-divider">
+
+  <h2 class="settings-section">Change password</h2>
+  <form action="/settings/password" method="post" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Current password
+      <input type="password" name="current_password" required autocomplete="current-password">
+    </label>
+
+    <label>New password
+      <input type="password" name="new_password" required minlength="8" autocomplete="new-password">
+      <small>8+ characters.</small>
+    </label>
+
+    <label>Confirm new password
+      <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password">
+    </label>
+
+    <button type="submit" class="btn btn-dark btn-block">Change password</button>
+  </form>
+</div>
+
+<%- include('_footer') %>

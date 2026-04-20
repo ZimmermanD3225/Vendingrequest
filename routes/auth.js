@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const { q } = require('../db');
+const { q, pool } = require('../db');
 const { generateVerificationToken, generateResetToken } = require('../lib/tokens');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../lib/email');
 const { setFlash } = require('../middleware/flash');
@@ -200,6 +200,82 @@ router.get('/verify/:token', async (req, res, next) => {
     delete req.session.pendingVerifyOperatorId;
     setFlash(req, 'success', 'Email verified. You can log in now.');
     res.redirect('/login');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -------------------- Settings --------------------
+
+function requireAuth(req, res, next) {
+  if (!req.session.operatorId) return res.redirect('/login');
+  next();
+}
+
+router.get('/settings', requireAuth, async (req, res, next) => {
+  try {
+    const op = await q.getOperatorById(req.session.operatorId);
+    if (!op) return res.redirect('/login');
+    res.render('settings', { title: 'Settings', op, error: null, success: null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/profile', requireAuth, async (req, res, next) => {
+  try {
+    const op = await q.getOperatorById(req.session.operatorId);
+    if (!op) return res.redirect('/login');
+    const businessName = String(req.body.business_name || '').trim().slice(0, 120);
+    const email = String(req.body.email || '').trim().slice(0, 160);
+
+    if (!EMAIL_RE.test(email)) {
+      return res.status(400).render('settings', {
+        title: 'Settings', op, error: 'Please enter a valid email address.', success: null,
+      });
+    }
+
+    const existing = await q.getOperatorByEmail(email);
+    if (existing && existing.id !== op.id) {
+      return res.status(400).render('settings', {
+        title: 'Settings', op, error: 'That email is already in use by another account.', success: null,
+      });
+    }
+
+    await pool.query(
+      `UPDATE operators SET business_name = $1, email = $2 WHERE id = $3`,
+      [businessName || null, email, op.id]
+    );
+    req.session.businessName = businessName || op.username;
+
+    const updated = await q.getOperatorById(op.id);
+    res.render('settings', { title: 'Settings', op: updated, error: null, success: 'Profile updated.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/password', requireAuth, async (req, res, next) => {
+  try {
+    const op = await q.getOperatorById(req.session.operatorId);
+    if (!op) return res.redirect('/login');
+
+    const current = String(req.body.current_password || '');
+    const newPass = String(req.body.new_password || '');
+    const confirm = String(req.body.confirm_password || '');
+
+    const renderError = (msg) =>
+      res.status(400).render('settings', { title: 'Settings', op, error: msg, success: null });
+
+    const ok = await bcrypt.compare(current, op.password_hash);
+    if (!ok) return renderError('Current password is incorrect.');
+    if (newPass.length < 8) return renderError('New password must be at least 8 characters.');
+    if (newPass !== confirm) return renderError('New passwords do not match.');
+
+    const hash = await bcrypt.hash(newPass, 12);
+    await q.updatePasswordHash(op.id, hash);
+
+    res.render('settings', { title: 'Settings', op, error: null, success: 'Password changed.' });
   } catch (err) {
     next(err);
   }
