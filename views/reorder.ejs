@@ -34,8 +34,15 @@
             <div class="req-main">
               <h3><%= item.product_name %> <span class="badge"><%= item.request_count %> request<%= item.request_count > 1 ? 's' : '' %></span></h3>
               <p class="muted small"><%= item.machine_names.join(', ') %></p>
+              <% if (mealmeEnabled) { %>
+                <div class="price-results" id="prices-<%= item.product_name.replace(/[^a-zA-Z0-9]/g, '_') %>"></div>
+              <% } %>
             </div>
             <div class="req-actions">
+              <% if (mealmeEnabled) { %>
+                <button type="button" class="btn btn-sm btn-ghost find-prices-btn"
+                        data-product="<%= item.product_name %>">Find prices</button>
+              <% } %>
               <% if (suppliers.length > 0) { %>
                 <form action="/reorder/link" method="post" class="inline-form">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -63,21 +70,69 @@
 
 <script>
 (function() {
-  var btn = document.getElementById('copy-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', function() {
-    var groups = document.querySelectorAll('.reorder-group');
-    var text = 'Reorder List\n\n';
-    groups.forEach(function(g) {
-      var header = g.querySelector('h2');
-      text += header.textContent + ':\n';
-      var items = g.querySelectorAll('.req h3');
-      items.forEach(function(h) { text += '  - ' + h.textContent.trim() + '\n'; });
-      text += '\n';
+  // Copy order list
+  var copyBtn = document.getElementById('copy-order-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function() {
+      var groups = document.querySelectorAll('.reorder-group');
+      var text = 'Reorder List\n\n';
+      groups.forEach(function(g) {
+        var header = g.querySelector('h2');
+        text += header.textContent + ':\n';
+        var items = g.querySelectorAll('.req h3');
+        items.forEach(function(h) { text += '  - ' + h.textContent.trim() + '\n'; });
+        text += '\n';
+      });
+      navigator.clipboard.writeText(text).then(function() {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(function() { copyBtn.textContent = 'Copy order list to clipboard'; }, 2000);
+      });
     });
-    navigator.clipboard.writeText(text).then(function() {
-      btn.textContent = 'Copied!';
-      setTimeout(function() { btn.textContent = 'Copy order list to clipboard'; }, 2000);
+  }
+
+  // Find prices via MealMe
+  document.querySelectorAll('.find-prices-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var product = btn.getAttribute('data-product');
+      var containerId = 'prices-' + product.replace(/[^a-zA-Z0-9]/g, '_');
+      var container = document.getElementById(containerId);
+      if (!container) return;
+
+      btn.textContent = 'Searching...';
+      btn.disabled = true;
+
+      fetch('/api/prices?q=' + encodeURIComponent(product))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.ok || !data.results.length) {
+            container.innerHTML = '<p class="muted small" style="margin-top:8px;">No prices found. MealMe API may need activation.</p>';
+            btn.textContent = 'Find prices';
+            btn.disabled = false;
+            return;
+          }
+          var html = '<div class="price-cards">';
+          data.results.forEach(function(r) {
+            var priceText = r.price ? ('$' + (r.price / 100).toFixed(2)) : 'See store';
+            html += '<div class="price-card">';
+            if (r.image) html += '<img src="' + r.image + '" alt="" class="price-card-img">';
+            html += '<div class="price-card-info">';
+            html += '<div class="price-card-name">' + r.name + '</div>';
+            html += '<div class="price-card-store">' + r.store + '</div>';
+            html += '</div>';
+            html += '<div class="price-card-price">' + priceText + '</div>';
+            if (r.url) html += '<a href="' + r.url + '" target="_blank" class="btn btn-sm btn-dark">Order</a>';
+            html += '</div>';
+          });
+          html += '</div>';
+          container.innerHTML = html;
+          btn.textContent = 'Refresh prices';
+          btn.disabled = false;
+        })
+        .catch(function() {
+          container.innerHTML = '<p class="muted small" style="margin-top:8px;">Price lookup failed.</p>';
+          btn.textContent = 'Find prices';
+          btn.disabled = false;
+        });
     });
   });
 })();

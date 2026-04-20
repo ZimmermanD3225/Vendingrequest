@@ -337,6 +337,20 @@ small { font-size: 0.85em; }
   background: var(--accent); color: var(--accent-contrast);
   padding: 2px 8px; border-radius: 99px; vertical-align: middle;
 }
+/* Price comparison cards */
+.price-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.price-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.88rem;
+}
+.price-card-img { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+.price-card-info { flex: 1; min-width: 0; }
+.price-card-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.price-card-store { font-size: 0.78rem; color: var(--muted); }
+.price-card-price { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+
 .select-sm {
   font-size: 0.85rem; padding: 5px 8px; border: 1px solid var(--border-strong);
   border-radius: var(--radius); background: var(--input-bg); color: var(--text);
