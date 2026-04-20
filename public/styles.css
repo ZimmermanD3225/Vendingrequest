@@ -640,8 +640,10 @@ form textarea { resize: vertical; }
   border-radius: var(--radius-lg);
   padding: 24px;
   align-self: start;
-  position: sticky; top: 80px;
   box-shadow: var(--shadow-sm);
+}
+@media (min-width: 860px) {
+  .qr-panel { position: sticky; top: 80px; }
 }
 .qr-frame {
   max-width: 280px;
