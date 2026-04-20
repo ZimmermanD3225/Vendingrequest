@@ -244,7 +244,8 @@ router.post('/requests/:id/status', requireAuth, async (req, res, next) => {
       new: 'Request reopened.',
     }[nextStatus];
     setFlash(req, 'success', msg);
-    res.redirect(`/machines/${request.machine_id}?status=${nextStatus}`);
+    const rType = request.type === 'issue' ? '&type=issue' : '';
+    res.redirect(`/machines/${request.machine_id}?status=${nextStatus}${rType}`);
   } catch (err) {
     next(err);
   }

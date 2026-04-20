@@ -38,10 +38,17 @@
 
   <section class="requests">
     <nav class="tabs">
-      <a class="<%= status === 'new' && type !== 'issue' ? 'active' : '' %>" href="?status=new">New</a>
-      <a class="<%= status === 'addressed' && type !== 'issue' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
-      <a class="<%= status === 'dismissed' && type !== 'issue' ? 'active' : '' %>" href="?status=dismissed">Dismissed</a>
-      <a class="<%= type === 'issue' ? 'active' : '' %>" href="?type=issue" style="color:var(--danger);">Issues</a>
+      <% if (type === 'issue') { %>
+        <a href="?status=new">Requests</a>
+        <a class="<%= status === 'new' ? 'active' : '' %>" href="?type=issue&status=new" style="color:var(--danger);">New Issues</a>
+        <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?type=issue&status=addressed" style="color:var(--danger);">Addressed</a>
+        <a class="<%= status === 'dismissed' ? 'active' : '' %>" href="?type=issue&status=dismissed" style="color:var(--danger);">Dismissed</a>
+      <% } else { %>
+        <a class="<%= status === 'new' ? 'active' : '' %>" href="?status=new">New</a>
+        <a class="<%= status === 'addressed' ? 'active' : '' %>" href="?status=addressed">Addressed</a>
+        <a class="<%= status === 'dismissed' ? 'active' : '' %>" href="?status=dismissed">Dismissed</a>
+        <a href="?type=issue" style="color:var(--danger);">Issues</a>
+      <% } %>
     </nav>
 
     <% if (requests.length === 0) { %>
