@@ -559,7 +559,7 @@ Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
     "per_unit": "$0.54/ea"
   },
   "tip": "one sentence buying tip"
-}`
+}`,
         }],
       }),
     });
