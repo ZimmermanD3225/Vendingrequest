@@ -501,55 +501,44 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
   }
 
   try {
-    // Also try Walmart API if available
-    let walmartContext = '';
-    if (walmart.enabled()) {
-      try {
-        const wResults = await walmart.searchProducts(query);
-        if (wResults.length > 0) {
-          walmartContext = '\n\nWalmart API results for reference:\n' +
-            wResults.slice(0, 5).map((r) => `  - ${r.name} | $${r.price || '?'} | ${r.size || 'N/A'}`).join('\n');
-        }
-      } catch { /* ignore */ }
-    }
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        model: 'claude-sonnet-4-5-20250514',
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
         messages: [{
           role: 'user',
-          content: `You are a vending machine purchasing assistant. A vending operator wants to find the cheapest bulk price for this product across major US retailers.
+          content: `You are a vending machine purchasing assistant. Search the web for REAL current bulk prices for this product across major US retailers.
 
 Product: "${query}"
 
-Search across these stores and find the best bulk deal (cases, multipacks) suitable for vending machines (single-serve items like 12oz cans, 20oz bottles, individual snack bags, etc):
-- Walmart
-- Sam's Club
-- Costco
-- Amazon
-- Target
-${walmartContext}
+Search each of these stores for the best bulk/case deal suitable for vending machines (single-serve sizes like 12oz cans, 20oz bottles, individual snack bags):
+1. Search walmart.com for "${query} bulk"
+2. Search amazon.com for "${query} bulk pack"
+3. Search target.com for "${query}"
+4. Search samsclub.com for "${query}"
+5. Search costco.com for "${query}"
 
-For each store, find the best bulk option with realistic current US retail pricing. Focus on per-unit cost.
+Use web search to find ACTUAL current prices. Do not estimate or guess.
 
-Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
+After searching, respond with ONLY this JSON (no markdown, no code blocks, just raw JSON):
 {
   "product": "original product name",
   "results": [
     {
       "store": "Store Name",
-      "item": "specific product name and pack size (e.g. 'Coca-Cola Classic 12oz Cans, 24-Pack')",
+      "item": "exact product name and pack size from the store listing",
       "price": 12.99,
       "per_unit": "$0.54/ea",
       "unit_count": 24,
-      "notes": "brief note about the deal"
+      "notes": "brief note"
     }
   ],
   "best_pick": {
@@ -562,10 +551,19 @@ Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
 }`,
         }],
       }),
+      signal: AbortSignal.timeout(60000),
     });
 
     const aiData = await response.json();
-    const text = aiData.content?.[0]?.text || '{}';
+
+    // Extract text from the response (may have tool use blocks mixed in)
+    let text = '';
+    if (Array.isArray(aiData.content)) {
+      for (const block of aiData.content) {
+        if (block.type === 'text') text += block.text;
+      }
+    }
+    if (!text) text = '{}';
 
     let analysis;
     try {
@@ -596,37 +594,7 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
   }
 
   try {
-    // Search Walmart for each product in parallel (if API key available)
-    const searchResults = await Promise.all(
-      products.slice(0, 20).map(async (name) => {
-        try {
-          const results = await walmart.searchProducts(name);
-          return { product: name, results: results.slice(0, 5) };
-        } catch {
-          return { product: name, results: [] };
-        }
-      })
-    );
-
-    const hasWalmartResults = searchResults.some((s) => s.results.length > 0);
-
-    // Build context for Claude
-    let productData;
-    let promptIntro;
-
-    if (hasWalmartResults) {
-      productData = searchResults.map((s) => {
-        if (s.results.length === 0) return `${s.product}: No store results found.`;
-        const listings = s.results
-          .map((r) => `  - ${r.name} | $${r.price || '?'} | ${r.size || 'N/A'}`)
-          .join('\n');
-        return `${s.product}:\n${listings}`;
-      }).join('\n\n');
-      promptIntro = `You are a vending machine purchasing assistant. Analyze these product search results and recommend the best value option for each product for a vending machine operator buying in bulk.\n\nFor each product, pick the BEST option considering: price per unit, bulk value, and suitability for vending machines. Be concise.`;
-    } else {
-      productData = products.map((p) => `- ${p}`).join('\n');
-      promptIntro = `You are a vending machine purchasing assistant. A vending operator needs to restock these products. No store API results are available, so use your knowledge of typical US retail/wholesale prices (Walmart, Sam's Club, Costco, Amazon) to estimate the best bulk price for each product.\n\nFor each product, recommend the best bulk buying option with estimated price. Focus on vending-machine-sized portions (single serve, cans, small bags, etc). Be concise and realistic with prices.`;
-    }
+    const productList = products.slice(0, 10).map((p) => `- ${p}`).join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -634,49 +602,63 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        model: 'claude-sonnet-4-5-20250514',
+        max_tokens: 6000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 15 }],
         messages: [{
           role: 'user',
-          content: `${promptIntro}
+          content: `You are a vending machine purchasing assistant. Search the web for REAL current bulk prices for these products. The operator needs to restock vending machines.
 
-Products:
-${productData}
+Products to search:
+${productList}
 
-Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
+For each product, search walmart.com, amazon.com, samsclub.com, costco.com, and target.com to find the best bulk deal (cases, multipacks of single-serve items suitable for vending machines).
+
+Use web search to find ACTUAL current prices. Do not estimate or guess.
+
+After searching, respond with ONLY this JSON (no markdown, no code blocks, just raw JSON):
 {
   "recommendations": [
     {
       "product": "original product name",
-      "best_option": "specific product name and size (e.g. 'Coca-Cola 12oz 24-pack')",
+      "best_option": "exact product name and size from the store listing",
       "price": 12.99,
-      "reason": "one short sentence why this is the best pick for vending",
+      "store": "Store Name",
+      "reason": "one short sentence why this is the best pick",
       "per_unit": "$0.54/ea"
     }
   ],
   "total_estimated": 45.99,
   "tip": "one sentence bulk buying tip for vending operators"
-}`
+}`,
         }],
       }),
+      signal: AbortSignal.timeout(90000),
     });
 
     const aiData = await response.json();
-    const text = aiData.content?.[0]?.text || '{}';
 
-    // Parse the JSON from Claude's response
+    // Extract text from the response (may have tool use blocks mixed in)
+    let text = '';
+    if (Array.isArray(aiData.content)) {
+      for (const block of aiData.content) {
+        if (block.type === 'text') text += block.text;
+      }
+    }
+    if (!text) text = '{}';
+
     let analysis;
     try {
-      // Extract JSON if wrapped in code blocks
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);
     } catch {
       analysis = { recommendations: [], total_estimated: 0, tip: '' };
     }
 
-    res.json({ ok: true, analysis, raw: searchResults });
+    res.json({ ok: true, analysis });
   } catch (err) {
     console.error('[api/prices/analyze]', err);
     res.json({ ok: false, error: 'AI analysis failed.' });
