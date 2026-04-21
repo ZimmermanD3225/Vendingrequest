@@ -87,7 +87,7 @@
                 <form action="/requests/<%= r.id %>/status" method="post" class="inline-form">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="status" value="new">
-                  <button class="btn btn-sm btn-ghost" type="submit">Reopen</button>
+                  <button class="btn btn-sm btn-ghost" type="submit"><%= r.type === 'issue' ? 'Restore to Issues' : 'Restore to New' %></button>
                 </form>
               <% } %>
             </div>
