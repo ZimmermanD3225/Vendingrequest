@@ -501,60 +501,52 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
   }
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250514',
-        max_tokens: 4000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
-        messages: [{
-          role: 'user',
-          content: `You are a vending machine purchasing assistant. Search the web for REAL current bulk prices for this product across major US retailers.
-
-Product: "${query}"
-
-Search each of these stores for the best bulk/case deal suitable for vending machines (single-serve sizes like 12oz cans, 20oz bottles, individual snack bags):
-1. Search walmart.com for "${query} bulk"
-2. Search amazon.com for "${query} bulk pack"
-3. Search target.com for "${query}"
-4. Search samsclub.com for "${query}"
-5. Search costco.com for "${query}"
-
-Use web search to find ACTUAL current prices. Do not estimate or guess.
-
-After searching, respond with ONLY this JSON (no markdown, no code blocks, just raw JSON):
-{
-  "product": "original product name",
-  "results": [
-    {
-      "store": "Store Name",
-      "item": "exact product name and pack size from the store listing",
-      "price": 12.99,
-      "per_unit": "$0.54/ea",
-      "unit_count": 24,
-      "notes": "brief note"
+    // Try with web search first, fall back to without
+    let aiData;
+    try {
+      const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'web-search-2025-03-05',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20250514',
+          max_tokens: 4000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
+          messages: [{
+            role: 'user',
+            content: `Search the web for current bulk prices for "${query}" at Walmart, Amazon, Target, Sam's Club, and Costco. Find bulk/case deals suitable for vending machines (single-serve sizes). Return ONLY JSON:\n{"product":"${query}","results":[{"store":"Store","item":"exact listing name","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"note"}],"best_pick":{"store":"cheapest","item":"item","price":12.99,"per_unit":"$0.54/ea"},"tip":"tip"}`,
+          }],
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      aiData = await wsResponse.json();
+      if (aiData.error) throw new Error(aiData.error.message || 'Web search failed');
+    } catch (wsErr) {
+      console.error('[api/prices/ai] Web search failed, falling back:', wsErr.message);
+      // Fallback: no web search
+      const fbResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: `You are a vending machine purchasing assistant. Find the best bulk prices for "${query}" across Walmart, Amazon, Target, Sam's Club, and Costco. Focus on bulk/case deals of single-serve items for vending machines. Use realistic current US prices.\n\nRespond with ONLY JSON:\n{"product":"${query}","results":[{"store":"Store","item":"product and pack size","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"note"}],"best_pick":{"store":"cheapest","item":"item","price":12.99,"per_unit":"$0.54/ea"},"tip":"tip"}`,
+          }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      aiData = await fbResponse.json();
     }
-  ],
-  "best_pick": {
-    "store": "Store with cheapest per-unit",
-    "item": "the specific item",
-    "price": 12.99,
-    "per_unit": "$0.54/ea"
-  },
-  "tip": "one sentence buying tip"
-}`,
-        }],
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    const aiData = await response.json();
 
     // Extract text from the response (may have tool use blocks mixed in)
     let text = '';
@@ -595,53 +587,53 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
 
   try {
     const productList = products.slice(0, 10).map((p) => `- ${p}`).join('\n');
+    const jsonFormat = `{"recommendations":[{"product":"name","best_option":"exact listing","price":12.99,"store":"Store","reason":"why","per_unit":"$0.54/ea"}],"total_estimated":45.99,"tip":"tip"}`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250514',
-        max_tokens: 6000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 15 }],
-        messages: [{
-          role: 'user',
-          content: `You are a vending machine purchasing assistant. Search the web for REAL current bulk prices for these products. The operator needs to restock vending machines.
-
-Products to search:
-${productList}
-
-For each product, search walmart.com, amazon.com, samsclub.com, costco.com, and target.com to find the best bulk deal (cases, multipacks of single-serve items suitable for vending machines).
-
-Use web search to find ACTUAL current prices. Do not estimate or guess.
-
-After searching, respond with ONLY this JSON (no markdown, no code blocks, just raw JSON):
-{
-  "recommendations": [
-    {
-      "product": "original product name",
-      "best_option": "exact product name and size from the store listing",
-      "price": 12.99,
-      "store": "Store Name",
-      "reason": "one short sentence why this is the best pick",
-      "per_unit": "$0.54/ea"
+    let aiData;
+    try {
+      const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'web-search-2025-03-05',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20250514',
+          max_tokens: 6000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 15 }],
+          messages: [{
+            role: 'user',
+            content: `Search the web for current bulk prices for these vending machine products at Walmart, Amazon, Target, Sam's Club, and Costco. Find the best bulk deal for each.\n\nProducts:\n${productList}\n\nReturn ONLY JSON:\n${jsonFormat}`,
+          }],
+        }),
+        signal: AbortSignal.timeout(90000),
+      });
+      aiData = await wsResponse.json();
+      if (aiData.error) throw new Error(aiData.error.message || 'Web search failed');
+    } catch (wsErr) {
+      console.error('[api/prices/analyze] Web search failed, falling back:', wsErr.message);
+      const fbResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: `You are a vending machine purchasing assistant. Find the best bulk prices for these products across Walmart, Amazon, Target, Sam's Club, and Costco. Focus on vending-sized single-serve items.\n\nProducts:\n${productList}\n\nRespond with ONLY JSON:\n${jsonFormat}`,
+          }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      aiData = await fbResponse.json();
     }
-  ],
-  "total_estimated": 45.99,
-  "tip": "one sentence bulk buying tip for vending operators"
-}`,
-        }],
-      }),
-      signal: AbortSignal.timeout(90000),
-    });
 
-    const aiData = await response.json();
-
-    // Extract text from the response (may have tool use blocks mixed in)
     let text = '';
     if (Array.isArray(aiData.content)) {
       for (const block of aiData.content) {
