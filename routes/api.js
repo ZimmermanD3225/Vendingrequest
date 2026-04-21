@@ -501,44 +501,7 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
   }
 
   try {
-    // Step 1: Web search for real prices
-    let searchContext = '';
-    try {
-      const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'web-search-2025-03-05',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 3000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
-          messages: [{
-            role: 'user',
-            content: `Search for the current bulk price of "${query}" at Walmart, Amazon, Sam's Club, Costco, and Target. I need pack sizes and prices for vending machine single-serve items (12oz cans, 20oz bottles, individual snack bags). List what you find with exact prices.`,
-          }],
-        }),
-        signal: AbortSignal.timeout(45000),
-      });
-      const wsData = await wsResponse.json();
-      if (Array.isArray(wsData.content)) {
-        for (const block of wsData.content) {
-          if (block.type === 'text') searchContext += block.text;
-        }
-      }
-    } catch (err) {
-      console.error('[api/prices/ai] Web search step failed:', err.message);
-    }
-
-    // Step 2: Format results as JSON (use smarter model)
-    const formatPrompt = searchContext
-      ? `Based on these real search results for "${query}":\n\n${searchContext}\n\nFormat the findings as JSON. Use the actual prices found. If a store wasn't found, omit it.`
-      : `Find the best bulk prices for "${query}" across Walmart, Amazon, Target, Sam's Club, and Costco. Use realistic current US prices for vending machine single-serve items.`;
-
-    const fmtResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -548,19 +511,32 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
-        system: 'You respond ONLY with valid JSON. No markdown, no explanation, no code blocks. Just raw JSON.',
+        system: `You are a vending machine bulk purchasing expert. You know current US retail and wholesale prices extremely well. When asked about product prices, provide accurate real-world prices based on your knowledge of what these items actually cost at each store. Always use realistic 2025-2026 US prices. Every result MUST have a numeric price — never null. You respond ONLY with valid JSON. No markdown, no explanation, no code blocks.`,
         messages: [
-          { role: 'user', content: `${formatPrompt}\n\nJSON format:\n{"product":"name","results":[{"store":"Store Name","item":"exact product and pack size","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"brief note"}],"best_pick":{"store":"cheapest store","item":"the item","price":12.99,"per_unit":"$0.54/ea"},"tip":"one buying tip"}` },
+          {
+            role: 'user',
+            content: `Find the best bulk price for "${query}" at each of these stores: Walmart, Amazon, Sam's Club, Costco, and Target.
+
+Requirements:
+- Focus on vending-machine single-serve sizes (12oz cans, 20oz bottles, single-serve bags/bars)
+- Find the largest bulk/case pack available at each store
+- Calculate accurate per-unit cost
+- Every result must have a real price number
+- Pick the store with the lowest per-unit cost as best_pick
+
+JSON format:
+{"product":"name","results":[{"store":"Store Name","item":"exact product name and pack size","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"brief note"}],"best_pick":{"store":"cheapest per-unit store","item":"the item","price":12.99,"per_unit":"$0.54/ea"},"tip":"one buying tip"}`,
+          },
           { role: 'assistant', content: '{' },
         ],
       }),
       signal: AbortSignal.timeout(30000),
     });
 
-    const fmtData = await fmtResponse.json();
+    const data = await response.json();
     let text = '{';
-    if (Array.isArray(fmtData.content)) {
-      for (const block of fmtData.content) {
+    if (Array.isArray(data.content)) {
+      for (const block of data.content) {
         if (block.type === 'text') text += block.text;
       }
     }
@@ -595,44 +571,7 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
   try {
     const productList = products.slice(0, 10).map((p) => `- ${p}`).join('\n');
 
-    // Step 1: Web search for real prices
-    let searchContext = '';
-    try {
-      const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'web-search-2025-03-05',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
-          messages: [{
-            role: 'user',
-            content: `Search for current bulk prices for these vending machine products. For each product find the cheapest bulk/case price at Walmart, Amazon, Sam's Club, Costco, or Target. List exact product names, pack sizes, and prices.\n\nProducts:\n${productList}`,
-          }],
-        }),
-        signal: AbortSignal.timeout(75000),
-      });
-      const wsData = await wsResponse.json();
-      if (Array.isArray(wsData.content)) {
-        for (const block of wsData.content) {
-          if (block.type === 'text') searchContext += block.text;
-        }
-      }
-    } catch (err) {
-      console.error('[api/prices/analyze] Web search step failed:', err.message);
-    }
-
-    // Step 2: Format as JSON
-    const formatPrompt = searchContext
-      ? `Based on these real search results:\n\n${searchContext}\n\nFor each product, pick the best bulk deal found. Use actual prices from the search results.`
-      : `Find the best bulk prices for these vending machine products across Walmart, Amazon, Target, Sam's Club, and Costco. Use realistic current US prices.\n\nProducts:\n${productList}`;
-
-    const fmtResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -641,20 +580,35 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        system: 'You respond ONLY with valid JSON. No markdown, no explanation, no code blocks. Just raw JSON.',
+        max_tokens: 4000,
+        system: `You are a vending machine bulk purchasing expert. You know current US retail and wholesale prices extremely well. Provide accurate real-world prices for bulk vending products at major US retailers. Always use realistic 2025-2026 US prices. Every recommendation MUST have a numeric price — never null. You respond ONLY with valid JSON. No markdown, no explanation, no code blocks.`,
         messages: [
-          { role: 'user', content: `${formatPrompt}\n\nJSON format:\n{"recommendations":[{"product":"original name","best_option":"exact listing name and pack size","price":12.99,"store":"Store Name","reason":"one sentence why","per_unit":"$0.54/ea"}],"total_estimated":45.99,"tip":"one buying tip"}` },
+          {
+            role: 'user',
+            content: `Find the cheapest bulk deal for each of these vending machine products. Check Walmart, Amazon, Sam's Club, Costco, and Target. Pick the single best bulk option for each product.
+
+Requirements:
+- Focus on vending-machine single-serve sizes (12oz cans, 20oz bottles, single-serve bags/bars)
+- Find the best value bulk/case pack
+- Every recommendation must have a real price and per-unit cost
+- Include which store has the best deal
+
+Products:
+${productList}
+
+JSON format:
+{"recommendations":[{"product":"original name","best_option":"exact product name and pack size","price":12.99,"store":"Store Name","reason":"why this is best","per_unit":"$0.54/ea"}],"total_estimated":45.99,"tip":"one buying tip"}`,
+          },
           { role: 'assistant', content: '{' },
         ],
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(45000),
     });
 
-    const fmtData = await fmtResponse.json();
+    const data = await response.json();
     let text = '{';
-    if (Array.isArray(fmtData.content)) {
-      for (const block of fmtData.content) {
+    if (Array.isArray(data.content)) {
+      for (const block of data.content) {
         if (block.type === 'text') text += block.text;
       }
     }
