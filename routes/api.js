@@ -489,6 +489,99 @@ router.get('/prices', apiAuth, async (req, res) => {
   }
 });
 
+// ==================== AI Single-Product Price Search ====================
+
+router.get('/prices/ai', apiAuth, async (req, res) => {
+  const query = String(req.query.q || '').trim();
+  if (!query) return res.json({ ok: false, error: 'Search query is required.' });
+
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) {
+    return res.json({ ok: false, error: 'AI analysis not configured.' });
+  }
+
+  try {
+    // Also try Walmart API if available
+    let walmartContext = '';
+    if (walmart.enabled()) {
+      try {
+        const wResults = await walmart.searchProducts(query);
+        if (wResults.length > 0) {
+          walmartContext = '\n\nWalmart API results for reference:\n' +
+            wResults.slice(0, 5).map((r) => `  - ${r.name} | $${r.price || '?'} | ${r.size || 'N/A'}`).join('\n');
+        }
+      } catch { /* ignore */ }
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `You are a vending machine purchasing assistant. A vending operator wants to find the cheapest bulk price for this product across major US retailers.
+
+Product: "${query}"
+
+Search across these stores and find the best bulk deal (cases, multipacks) suitable for vending machines (single-serve items like 12oz cans, 20oz bottles, individual snack bags, etc):
+- Walmart
+- Sam's Club
+- Costco
+- Amazon
+- Target
+${walmartContext}
+
+For each store, find the best bulk option with realistic current US retail pricing. Focus on per-unit cost.
+
+Respond in this exact JSON format (no markdown, no code blocks, just raw JSON):
+{
+  "product": "original product name",
+  "results": [
+    {
+      "store": "Store Name",
+      "item": "specific product name and pack size (e.g. 'Coca-Cola Classic 12oz Cans, 24-Pack')",
+      "price": 12.99,
+      "per_unit": "$0.54/ea",
+      "unit_count": 24,
+      "notes": "brief note about the deal"
+    }
+  ],
+  "best_pick": {
+    "store": "Store with cheapest per-unit",
+    "item": "the specific item",
+    "price": 12.99,
+    "per_unit": "$0.54/ea"
+  },
+  "tip": "one sentence buying tip"
+}`
+        }],
+      }),
+    });
+
+    const aiData = await response.json();
+    const text = aiData.content?.[0]?.text || '{}';
+
+    let analysis;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch {
+      analysis = { product: query, results: [], best_pick: null, tip: '' };
+    }
+
+    res.json({ ok: true, analysis });
+  } catch (err) {
+    console.error('[api/prices/ai]', err);
+    res.json({ ok: false, error: 'AI price search failed.' });
+  }
+});
+
 // ==================== AI Price Analysis ====================
 
 router.post('/prices/analyze', apiAuth, async (req, res) => {
