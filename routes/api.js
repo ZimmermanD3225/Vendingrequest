@@ -501,8 +501,8 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
   }
 
   try {
-    // Try with web search first, fall back to without
-    let aiData;
+    // Step 1: Web search for real prices
+    let searchContext = '';
     try {
       const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -514,53 +514,60 @@ router.get('/prices/ai', apiAuth, async (req, res) => {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
+          max_tokens: 3000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
           messages: [{
             role: 'user',
-            content: `Search the web for current bulk prices for "${query}" at Walmart, Amazon, Target, Sam's Club, and Costco. Find bulk/case deals suitable for vending machines (single-serve sizes). Return ONLY JSON:\n{"product":"${query}","results":[{"store":"Store","item":"exact listing name","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"note"}],"best_pick":{"store":"cheapest","item":"item","price":12.99,"per_unit":"$0.54/ea"},"tip":"tip"}`,
+            content: `Search for the current bulk price of "${query}" at Walmart, Amazon, Sam's Club, Costco, and Target. I need pack sizes and prices for vending machine single-serve items (12oz cans, 20oz bottles, individual snack bags). List what you find with exact prices.`,
           }],
         }),
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(45000),
       });
-      aiData = await wsResponse.json();
-      if (aiData.error) throw new Error(aiData.error.message || 'Web search failed');
-    } catch (wsErr) {
-      console.error('[api/prices/ai] Web search failed, falling back:', wsErr.message);
-      // Fallback: no web search
-      const fbResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2000,
-          messages: [{
-            role: 'user',
-            content: `You are a vending machine purchasing assistant. Find the best bulk prices for "${query}" across Walmart, Amazon, Target, Sam's Club, and Costco. Focus on bulk/case deals of single-serve items for vending machines. Use realistic current US prices.\n\nRespond with ONLY JSON:\n{"product":"${query}","results":[{"store":"Store","item":"product and pack size","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"note"}],"best_pick":{"store":"cheapest","item":"item","price":12.99,"per_unit":"$0.54/ea"},"tip":"tip"}`,
-          }],
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      aiData = await fbResponse.json();
+      const wsData = await wsResponse.json();
+      if (Array.isArray(wsData.content)) {
+        for (const block of wsData.content) {
+          if (block.type === 'text') searchContext += block.text;
+        }
+      }
+    } catch (err) {
+      console.error('[api/prices/ai] Web search step failed:', err.message);
     }
 
-    // Extract text from the response (may have tool use blocks mixed in)
-    let text = '';
-    if (Array.isArray(aiData.content)) {
-      for (const block of aiData.content) {
+    // Step 2: Format results as JSON (use smarter model)
+    const formatPrompt = searchContext
+      ? `Based on these real search results for "${query}":\n\n${searchContext}\n\nFormat the findings as JSON. Use the actual prices found. If a store wasn't found, omit it.`
+      : `Find the best bulk prices for "${query}" across Walmart, Amazon, Target, Sam's Club, and Costco. Use realistic current US prices for vending machine single-serve items.`;
+
+    const fmtResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system: 'You respond ONLY with valid JSON. No markdown, no explanation, no code blocks. Just raw JSON.',
+        messages: [
+          { role: 'user', content: `${formatPrompt}\n\nJSON format:\n{"product":"name","results":[{"store":"Store Name","item":"exact product and pack size","price":12.99,"per_unit":"$0.54/ea","unit_count":24,"notes":"brief note"}],"best_pick":{"store":"cheapest store","item":"the item","price":12.99,"per_unit":"$0.54/ea"},"tip":"one buying tip"}` },
+          { role: 'assistant', content: '{' },
+        ],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const fmtData = await fmtResponse.json();
+    let text = '{';
+    if (Array.isArray(fmtData.content)) {
+      for (const block of fmtData.content) {
         if (block.type === 'text') text += block.text;
       }
     }
-    if (!text) text = '{}';
 
     let analysis;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      analysis = JSON.parse(text);
     } catch {
       analysis = { product: query, results: [], best_pick: null, tip: '' };
     }
@@ -587,9 +594,9 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
 
   try {
     const productList = products.slice(0, 10).map((p) => `- ${p}`).join('\n');
-    const jsonFormat = `{"recommendations":[{"product":"name","best_option":"exact listing","price":12.99,"store":"Store","reason":"why","per_unit":"$0.54/ea"}],"total_estimated":45.99,"tip":"tip"}`;
 
-    let aiData;
+    // Step 1: Web search for real prices
+    let searchContext = '';
     try {
       const wsResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -601,51 +608,60 @@ router.post('/prices/analyze', apiAuth, async (req, res) => {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 6000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 15 }],
+          max_tokens: 4000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }],
           messages: [{
             role: 'user',
-            content: `Search the web for current bulk prices for these vending machine products at Walmart, Amazon, Target, Sam's Club, and Costco. Find the best bulk deal for each.\n\nProducts:\n${productList}\n\nReturn ONLY JSON:\n${jsonFormat}`,
+            content: `Search for current bulk prices for these vending machine products. For each product find the cheapest bulk/case price at Walmart, Amazon, Sam's Club, Costco, or Target. List exact product names, pack sizes, and prices.\n\nProducts:\n${productList}`,
           }],
         }),
-        signal: AbortSignal.timeout(90000),
+        signal: AbortSignal.timeout(75000),
       });
-      aiData = await wsResponse.json();
-      if (aiData.error) throw new Error(aiData.error.message || 'Web search failed');
-    } catch (wsErr) {
-      console.error('[api/prices/analyze] Web search failed, falling back:', wsErr.message);
-      const fbResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2000,
-          messages: [{
-            role: 'user',
-            content: `You are a vending machine purchasing assistant. Find the best bulk prices for these products across Walmart, Amazon, Target, Sam's Club, and Costco. Focus on vending-sized single-serve items.\n\nProducts:\n${productList}\n\nRespond with ONLY JSON:\n${jsonFormat}`,
-          }],
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      aiData = await fbResponse.json();
+      const wsData = await wsResponse.json();
+      if (Array.isArray(wsData.content)) {
+        for (const block of wsData.content) {
+          if (block.type === 'text') searchContext += block.text;
+        }
+      }
+    } catch (err) {
+      console.error('[api/prices/analyze] Web search step failed:', err.message);
     }
 
-    let text = '';
-    if (Array.isArray(aiData.content)) {
-      for (const block of aiData.content) {
+    // Step 2: Format as JSON
+    const formatPrompt = searchContext
+      ? `Based on these real search results:\n\n${searchContext}\n\nFor each product, pick the best bulk deal found. Use actual prices from the search results.`
+      : `Find the best bulk prices for these vending machine products across Walmart, Amazon, Target, Sam's Club, and Costco. Use realistic current US prices.\n\nProducts:\n${productList}`;
+
+    const fmtResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system: 'You respond ONLY with valid JSON. No markdown, no explanation, no code blocks. Just raw JSON.',
+        messages: [
+          { role: 'user', content: `${formatPrompt}\n\nJSON format:\n{"recommendations":[{"product":"original name","best_option":"exact listing name and pack size","price":12.99,"store":"Store Name","reason":"one sentence why","per_unit":"$0.54/ea"}],"total_estimated":45.99,"tip":"one buying tip"}` },
+          { role: 'assistant', content: '{' },
+        ],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const fmtData = await fmtResponse.json();
+    let text = '{';
+    if (Array.isArray(fmtData.content)) {
+      for (const block of fmtData.content) {
         if (block.type === 'text') text += block.text;
       }
     }
-    if (!text) text = '{}';
 
     let analysis;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      analysis = JSON.parse(text);
     } catch {
       analysis = { recommendations: [], total_estimated: 0, tip: '' };
     }
