@@ -301,6 +301,8 @@ const q = {
               COALESCE((SELECT COUNT(*) FROM requests r
                         WHERE r.machine_id = m.id AND r.status = 'new'), 0)::int AS new_count,
               COALESCE((SELECT COUNT(*) FROM requests r
+                        WHERE r.machine_id = m.id AND r.status = 'new' AND r.type = 'issue'), 0)::int AS issue_count,
+              COALESCE((SELECT COUNT(*) FROM requests r
                         WHERE r.machine_id = m.id), 0)::int                        AS total_count
        FROM machines m
        WHERE m.operator_id = $1
